@@ -130,6 +130,19 @@ function buildEmailHtml(d) {
 
       </td></tr>
 
+      <!-- ASSIGN PURPOSE CTA -->
+      <tr><td style="padding:24px 40px;text-align:center;">
+        <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+          <tr><td style="background-color:#a0d6b4;border-radius:8px;text-align:center;">
+            <a href="https://assignpurpose.netlify.app/?po=${d.itemId}" target="_blank"
+              style="display:inline-block;padding:14px 32px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#0a0a0a;text-decoration:none;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;">
+              Assign Purpose &#8594;
+            </a>
+          </td></tr>
+        </table>
+        <p style="margin:8px 0 0;font-size:11px;color:#888888;">Let us know how you&#39;d like these materials used.</p>
+      </td></tr>
+
       <!-- DISCLAIMER -->
       <tr><td style="background-color:#e8e8e8;padding:20px 40px;border-top:1px solid #d5d5d5;">
         <p style="margin:0;font-size:12px;color:#888888;line-height:1.7;text-align:center;">Questions? Contact <a href="mailto:concierge@handslogistics.com" style="color:#a0d6b4;text-decoration:none;">concierge@handslogistics.com</a> &mdash; please report any discrepancies within 48 hours.</p>
