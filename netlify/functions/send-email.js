@@ -1,4 +1,4 @@
-const RESEND_API_KEY = 're_f5x2xUcX_MAP2kEffgWTQop4kCjsNnMwq';
+const RESEND_API_KEY = 're_YOUR_RESEND_KEY_HERE';
 const FROM           = 'HANDS Logistics <concierge@handslogistics.com>';
 const REPLY_TO       = 'concierge@handslogistics.com';
 const CC             = ['concierge@handslogistics.com'];
@@ -30,7 +30,6 @@ function buildEmailHtml(d) {
 <p style="margin:4px 0 0;font-size:20px;font-weight:700;color:${accent};letter-spacing:1px;">${d.itemId}</p>
 </td></tr>
 <tr><td style="padding:24px 20px 8px;">
-<p style="margin:0 0 10px 12px;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;">Shipment Details</p>
 <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
 ${row('Client',d.clientName)}${row('Account / Brand',d.account)}${row('Project / Event',d.eventProject)}${row('Purpose',d.purpose)}${row(dateLabel,d.deliveryDate)}${row('Carrier',d.carrier)}${row('Tracking #',d.trackingNumber)}${row(addrLabel,d.address)}${row('Cartons',d.cartonCount)}${row('Pallets',d.palletCount)}${row('Contents',d.contentsDescription)}${row('Special Instructions',d.specialInstructions)}${row('Handler',d.receivedShippedBy)}${row('WBS / Invoice Code',d.invoiceCode)}${row('Billing Status',d.billingStatus)}${photoHtml}
 </table></td></tr>
@@ -57,7 +56,7 @@ exports.handler = async function(event) {
     });
     if (!resendRes.ok) {
       const e = await resendRes.json().catch(()=>({}));
-      throw new Error(e.message||`Resend HTTP ${resendRes.status}`);
+      throw new Error(e.message || `Resend HTTP ${resendRes.status}`);
     }
     const result = await resendRes.json();
     return { statusCode:200, headers:{...CORS,'Content-Type':'application/json'}, body:JSON.stringify({success:true,id:result.id}) };
