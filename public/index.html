@@ -367,7 +367,7 @@ h1,h2,h3,.bebas{font-family:'Bebas Neue',Impact,Arial,sans-serif;font-weight:400
     <div class="progress-bar" id="submit-progress" style="display:none;"><div class="pb-fill" id="submit-fill"></div></div>
     <div class="status-msg" id="submit-status"></div>
 
-    <div class="submit-row" style="margin-top:14px;flex-wrap:wrap;gap:10px;">
+    <div class="submit-row" style="margin-top:14px;">
       <button class="btn btn-primary" id="submit-btn" onclick="submitForm()">Create &amp; Notify</button>
       <button class="btn btn-ghost" type="button" onclick="previewEmail()">&#128065; Preview Email</button>
       <button class="btn btn-ghost" onclick="resetForm()">Clear Form</button>
@@ -394,14 +394,13 @@ h1,h2,h3,.bebas{font-family:'Bebas Neue',Impact,Arial,sans-serif;font-weight:400
 </div><!-- /page -->
 
 <script>
-
 // ══════════════════════════════════════════════════════════════
 //  CONFIG — update these values
 // ══════════════════════════════════════════════════════════════
 const CONFIG = {
   // Monday.com
   MONDAY_API_URL:    'https://api.monday.com/v2',
-  MONDAY_API_TOKEN:  'eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjYzNjEzNzc5MSwiYWFpIjoxMSwidWlkIjoxNDk4NzI0NSwiaWFkIjoiMjAyNi0wMy0yMlQxNzoyNTo1MC4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6NjYxOTgxNSwicmduIjoidXNlMSJ9.RLTGytTbLaran19E20Ag8nzxdaWuwVKVZNx3fdvAIBQ',   // paste token
+  MONDAY_API_TOKEN:  'eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjYzNjEzNzc5MSwiYWFpIjoxMSwidWlkIjoxNDk4NzI0NSwiaWFkIjoiMjAyNi0wMy0yMlQxNzoyNTo1MC4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6NjYxOTgxNSwicmduIjoidXNlMSJ9.RLTGytTbLaran19E20Ag8nzxdaWuwVKVZNx3fdvAIBQ',
   BOARD_ID:          '18405667848',
   GROUP_INBOUND:     'topics',        // "Inbound 2nd Qtr"
   GROUP_OUTBOUND:    'new_group',     // "Outbound 2nd Otr"
@@ -411,7 +410,7 @@ const CONFIG = {
   CLOUDINARY_PRESET: 'hands_pod_photos',
   CLOUDINARY_URL:    'https://api.cloudinary.com/v1_1/dxkpbjicu/image/upload',
 
-  // Email via Netlify function
+  // Email (server-side via Netlify function)
   EMAIL_FUNCTION:    '/.netlify/functions/send-email',
 
   // Billing portal
@@ -682,107 +681,91 @@ async function writePhotoUrlsToMonday(itemId, photoUrls) {
 // ══════════════════════════════════════════════════════════════
 //  EMAIL FUNCTIONS
 // ══════════════════════════════════════════════════════════════
-// ── EMAIL HTML (matches DC/POD brand template) ────────────────
+
+// ══════════════════════════════════════════════════════════════
+//  EMAIL BUILDER — matches DC/POD brand template
+// ══════════════════════════════════════════════════════════════
 function buildEmailHtml(d) {
-  const isInbound  = d.direction === 'inbound';
-  const bannerText = isInbound ? 'Inbound Receipt' : 'Outbound Dispatch';
-  const headline   = isInbound ? 'Your shipment has been received.' : 'Your shipment has been dispatched.';
-  const dateLabel  = isInbound ? 'Date Received'  : 'Ship Date';
-  const addrLabel  = isInbound ? 'Origin Address' : 'Ship-To Address';
-  const LOGO       = 'https://res.cloudinary.com/dxkpbjicu/image/upload/v1774556178/HANDS_Logo_BlackBG_HiRes_qtkac8.png';
-
-  function esc(s) {
-    if (!s) return '';
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
-  const row = (label, value) => value
-    ? `<tr><td style="padding:11px 18px;font-size:12px;color:#888888;border-bottom:1px solid #e0e0e0;width:38%;text-transform:uppercase;letter-spacing:0.5px;">${label}</td><td style="padding:11px 18px;font-size:13px;color:#0a0a0a;border-bottom:1px solid #e0e0e0;">${esc(value)}</td></tr>`
-    : '';
-  const rowLast = (label, value) => value
-    ? `<tr><td style="padding:11px 18px;font-size:12px;color:#888888;width:38%;text-transform:uppercase;letter-spacing:0.5px;">${label}</td><td style="padding:11px 18px;font-size:13px;color:#0a0a0a;">${esc(value)}</td></tr>`
-    : '';
-  const photos = [d.photoUrl1, d.photoUrl2].filter(Boolean);
-  const photoSection = photos.length ? `
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;"><tr><td align="center">
-      <table cellpadding="0" cellspacing="0" border="0"><tr>
-        ${photos.map((u,i)=>`<td style="padding:0 4px;"><table cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:#a0d6b4;border-radius:8px;text-align:center;"><a href="${esc(u)}" target="_blank" style="display:inline-block;padding:14px 28px;font-size:13px;font-weight:700;color:#0a0a0a;text-decoration:none;letter-spacing:1px;text-transform:uppercase;">View Photo ${i+1}</a></td></tr></table></td>`).join('')}
-      </tr></table>
-    </td></tr></table>` : '';
-
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${bannerText}</title></head>
-<body style="margin:0;padding:0;background-color:#f2f2f2;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#e0e0e0;padding:32px 0;"><tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
-<tr><td style="background-color:#0a0a0a;padding:32px 40px 28px;">
-  <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-    <td style="vertical-align:middle;"><img src="${LOGO}" alt="HANDS Logistics" width="145" style="display:block;border:0;max-width:145px;"></td>
-    <td align="right" style="vertical-align:middle;"><p style="margin:0;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#555555;">Brand Activations<br>Concierge Logistics</p></td>
-  </tr></table>
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;"><tr>
-    <td width="68%" height="3" style="background-color:#1a1a1a;font-size:0;line-height:0;">&nbsp;</td>
-    <td width="32%" height="3" style="background-color:#a0d6b4;font-size:0;line-height:0;">&nbsp;</td>
-  </tr></table>
-</td></tr>
-<tr><td style="background-color:#a0d6b4;padding:14px 40px;">
-  <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#0a0a0a;text-align:center;">${bannerText}</p>
-</td></tr>
-<tr><td style="padding:36px 40px 0;">
-  <p style="margin:0 0 8px 0;font-size:22px;font-weight:800;color:#0a0a0a;letter-spacing:-0.5px;">${headline}</p>
-  <p style="margin:0 0 28px 0;font-size:14px;color:#444444;line-height:1.6;">Hi ${esc(d.clientName)}, your ${isInbound ? 'inbound shipment has been received and logged' : 'outbound shipment has been processed and dispatched'}. Review the details below and reach out if you have any questions.</p>
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;border:1px solid #d0d0d0;border-radius:6px;overflow:hidden;">
-    <tr><td colspan="2" style="background-color:#e2e2e2;padding:10px 18px;border-bottom:1px solid #d0d0d0;"><p style="margin:0;font-size:9.5px;font-weight:900;letter-spacing:3px;text-transform:uppercase;color:#a0d6b4;">01 &mdash; Order Information</p></td></tr>
-    ${row('Client',d.clientName)}${row('Account / Brand',d.account)}${row('PO Number',d.itemId||'PREVIEW')}${row('Project / Event',d.eventProject)}${rowLast('Purpose',d.purpose)}
-  </table>
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;border:1px solid #d0d0d0;border-radius:6px;overflow:hidden;">
-    <tr><td colspan="2" style="background-color:#e2e2e2;padding:10px 18px;border-bottom:1px solid #d0d0d0;"><p style="margin:0;font-size:9.5px;font-weight:900;letter-spacing:3px;text-transform:uppercase;color:#a0d6b4;">02 &mdash; Shipment Details</p></td></tr>
-    ${row(dateLabel,d.deliveryDate)}${row('Carrier',d.carrier)}${row('Tracking #',d.trackingNumber)}${row(addrLabel,d.address)}${row('Cartons',d.cartonCount)}${row('Pallets',d.palletCount)}${row('Weight (lbs)',d.weight)}${rowLast('Contents',d.contentsDescription)}
-  </table>
-  ${d.specialInstructions ? `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;border:1px solid #d0d0d0;border-radius:6px;overflow:hidden;"><tr><td style="background-color:#e2e2e2;padding:10px 18px;border-bottom:1px solid #d0d0d0;"><p style="margin:0;font-size:9.5px;font-weight:900;letter-spacing:3px;text-transform:uppercase;color:#a0d6b4;">03 &mdash; Special Instructions</p></td></tr><tr><td style="padding:16px 18px;"><p style="margin:0;font-size:13px;color:#0a0a0a;line-height:1.9;white-space:pre-line;">${esc(d.specialInstructions)}</p></td></tr></table>` : ''}
-  ${photoSection}
-</td></tr>
-<tr><td style="background-color:#e8e8e8;padding:20px 40px;border-top:1px solid #d5d5d5;">
-  <p style="margin:0;font-size:12px;color:#888888;line-height:1.7;text-align:center;">Questions? Contact <a href="mailto:concierge@handslogistics.com" style="color:#a0d6b4;text-decoration:none;">concierge@handslogistics.com</a> &mdash; please report any discrepancies within 48 hours.</p>
-</td></tr>
-<tr><td style="padding:24px 40px;text-align:center;">
-  <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr><td style="background-color:#a0d6b4;border-radius:8px;text-align:center;"><a href="https://assignpurpose.netlify.app/?po=${d.itemId||'PREVIEW'}" target="_blank" style="display:inline-block;padding:14px 32px;font-size:13px;font-weight:700;color:#0a0a0a;text-decoration:none;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;">Assign Purpose &rarr;</a></td></tr></table>
-  <p style="margin:8px 0 0;font-size:11px;color:#888888;">Let us know how you'd like these materials used.</p>
-</td></tr>
-<tr><td style="padding:0;font-size:0;line-height:0;">
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr>
-    <td width="68%" height="3" style="background-color:#1a1a1a;font-size:0;line-height:0;">&nbsp;</td>
-    <td width="32%" height="3" style="background-color:#a0d6b4;font-size:0;line-height:0;">&nbsp;</td>
-  </tr></table>
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td style="background-color:#0a0a0a;padding:0;">
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:rgba(5,5,5,0.90);"><tr><td style="padding:32px 40px 36px 40px;">
-      <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-        <td width="38%" style="vertical-align:top;padding-right:32px;border-right:1px solid rgba(255,255,255,0.12);">
-          <p style="margin:0 0 6px 0;font-family:Georgia,'Times New Roman',serif;font-size:20px;color:#ffffff;line-height:1.2;">Concierge Desk</p>
-          <p style="margin:0 0 20px 0;font-size:9px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:#a0d6b4;">HANDS Logistics</p>
-          <table cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:#a0d6b4;border-radius:6px;text-align:center;">
-            <a href="https://scheduleadelivery.netlify.app/" target="_blank" style="display:inline-block;padding:13px 20px;font-size:11px;font-weight:700;color:#0a0a0a;text-decoration:none;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;">Book Another Delivery</a>
-          </td></tr></table>
-        </td>
-        <td width="62%" style="vertical-align:top;padding-left:32px;">
-          <p style="margin:0 0 18px 0;font-family:Georgia,'Times New Roman',serif;font-size:13px;font-style:italic;color:rgba(255,255,255,0.85);padding-bottom:18px;border-bottom:1px solid rgba(255,255,255,0.12);">Your logistics are in better HANDS.</p>
-          <table width="100%" cellpadding="0" cellspacing="0" border="0">
-            <tr><td width="22" style="vertical-align:top;padding-bottom:12px;"><span style="color:#a0d6b4;font-size:13px;">&#9993;</span></td><td style="padding-bottom:12px;"><a href="mailto:concierge@handslogistics.com" style="font-size:12px;color:#ffffff;text-decoration:none;">concierge@handslogistics.com</a></td></tr>
-            <tr><td width="22" style="vertical-align:top;padding-bottom:12px;"><span style="color:#a0d6b4;font-size:13px;">&#9832;</span></td><td style="padding-bottom:12px;"><a href="https://www.handslogistics.com" style="font-size:12px;color:#ffffff;text-decoration:none;">www.handslogistics.com</a></td></tr>
-            <tr><td width="22" style="vertical-align:top;"><span style="color:#a0d6b4;font-size:13px;">&#9679;</span></td><td><span style="font-size:11px;color:rgba(255,255,255,0.75);line-height:1.5;">8540 Dean Martin Drive<br>Suite 160, Las Vegas, NV 89139</span></td></tr>
-          </table>
-        </td>
-      </tr></table>
-      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px;"><tr><td height="1" style="background-color:rgba(255,255,255,0.10);font-size:0;line-height:0;"></td></tr></table>
-      <p style="margin:10px 0 0 0;font-size:8px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.35);">Brand Activations &nbsp;&middot;&nbsp; Events &nbsp;&middot;&nbsp; Concierge Logistics</p>
-    </td></tr></table>
-  </td></tr></table>
-</td></tr>
-</table></td></tr></table>
-</body></html>`;
+  var isInbound  = d.direction === 'inbound';
+  var bannerText = isInbound ? 'Inbound Receipt' : 'Outbound Dispatch';
+  var headline   = isInbound ? 'Your shipment has been received.' : 'Your shipment has been dispatched.';
+  var dateLabel  = isInbound ? 'Date Received' : 'Ship Date';
+  var addrLabel  = isInbound ? 'Origin Address' : 'Ship-To Address';
+  var LOGO = 'https://res.cloudinary.com/dxkpbjicu/image/upload/v1774556178/HANDS_Logo_BlackBG_HiRes_qtkac8.png';
+  function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+  var row  = function(lbl,val) { return val ? '<tr><td style="padding:11px 18px;font-size:12px;color:#888;border-bottom:1px solid #e0e0e0;width:38%;text-transform:uppercase;letter-spacing:0.5px;">'+lbl+'</td><td style="padding:11px 18px;font-size:13px;color:#0a0a0a;border-bottom:1px solid #e0e0e0;">'+esc(val)+'</td></tr>' : ''; };
+  var rowL = function(lbl,val) { return val ? '<tr><td style="padding:11px 18px;font-size:12px;color:#888;width:38%;text-transform:uppercase;letter-spacing:0.5px;">'+lbl+'</td><td style="padding:11px 18px;font-size:13px;color:#0a0a0a;">'+esc(val)+'</td></tr>' : ''; };
+  var photos = [d.photoUrl1, d.photoUrl2].filter(Boolean);
+  var photoSection = photos.length ? '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;"><tr><td align="center"><table cellpadding="0" cellspacing="0" border="0"><tr>'+photos.map(function(u,i){return '<td style="padding:0 4px;"><table cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:#a0d6b4;border-radius:8px;"><a href="'+esc(u)+'" target="_blank" style="display:inline-block;padding:14px 28px;font-size:13px;font-weight:700;color:#0a0a0a;text-decoration:none;letter-spacing:1px;text-transform:uppercase;">View Photo '+(i+1)+'</a></td></tr></table></td>';}).join('')+'</tr></table></td></tr></table>' : '';
+  var assignUrl = 'https://assignpurpose.netlify.app/?po=' + (d.itemId || 'PREVIEW');
+  return '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>'+bannerText+'</title></head>'
+    + '<body style="margin:0;padding:0;background-color:#f2f2f2;font-family:\'Helvetica Neue\',Helvetica,Arial,sans-serif;">'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#e0e0e0;padding:32px 0;"><tr><td align="center">'
+    + '<table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">'
+    + '<tr><td style="background-color:#0a0a0a;padding:32px 40px 28px;">'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>'
+    + '<td><img src="'+LOGO+'" alt="HANDS Logistics" width="145" style="display:block;border:0;"></td>'
+    + '<td align="right"><p style="margin:0;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#555;">Brand Activations<br>Concierge Logistics</p></td>'
+    + '</tr></table>'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;"><tr>'
+    + '<td width="68%" height="3" style="background-color:#1a1a1a;font-size:0;line-height:0;">&nbsp;</td>'
+    + '<td width="32%" height="3" style="background-color:#a0d6b4;font-size:0;line-height:0;">&nbsp;</td>'
+    + '</tr></table></td></tr>'
+    + '<tr><td style="background-color:#a0d6b4;padding:14px 40px;"><p style="margin:0;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#0a0a0a;text-align:center;">'+bannerText+'</p></td></tr>'
+    + '<tr><td style="padding:36px 40px 0;">'
+    + '<p style="margin:0 0 8px;font-size:22px;font-weight:800;color:#0a0a0a;letter-spacing:-0.5px;">'+headline+'</p>'
+    + '<p style="margin:0 0 28px;font-size:14px;color:#444;line-height:1.6;">Hi '+esc(d.clientName)+', your '+(isInbound ? 'inbound shipment has been received and logged' : 'outbound shipment has been processed and dispatched')+'. Review the details below and contact us with any questions.</p>'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;border:1px solid #d0d0d0;border-radius:6px;overflow:hidden;">'
+    + '<tr><td colspan="2" style="background-color:#e2e2e2;padding:10px 18px;border-bottom:1px solid #d0d0d0;"><p style="margin:0;font-size:9.5px;font-weight:900;letter-spacing:3px;text-transform:uppercase;color:#a0d6b4;">01 &mdash; Order Information</p></td></tr>'
+    + row('Client',d.clientName)+row('Account / Brand',d.account)+row('PO Number',d.itemId||'PREVIEW')+row('Project / Event',d.eventProject)+rowL('Purpose',d.purpose)
+    + '</table>'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;border:1px solid #d0d0d0;border-radius:6px;overflow:hidden;">'
+    + '<tr><td colspan="2" style="background-color:#e2e2e2;padding:10px 18px;border-bottom:1px solid #d0d0d0;"><p style="margin:0;font-size:9.5px;font-weight:900;letter-spacing:3px;text-transform:uppercase;color:#a0d6b4;">02 &mdash; Shipment Details</p></td></tr>'
+    + row(dateLabel,d.deliveryDate)+row('Carrier',d.carrier)+row('Tracking #',d.trackingNumber)+row(addrLabel,d.address)+row('Cartons',d.cartonCount)+row('Pallets',d.palletCount)+row('Weight (lbs)',d.weight)+rowL('Contents',d.contentsDescription)
+    + '</table>'
+    + (d.specialInstructions ? '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;border:1px solid #d0d0d0;border-radius:6px;overflow:hidden;"><tr><td style="background-color:#e2e2e2;padding:10px 18px;border-bottom:1px solid #d0d0d0;"><p style="margin:0;font-size:9.5px;font-weight:900;letter-spacing:3px;text-transform:uppercase;color:#a0d6b4;">03 &mdash; Special Instructions</p></td></tr><tr><td style="padding:16px 18px;"><p style="margin:0;font-size:13px;color:#0a0a0a;line-height:1.9;white-space:pre-line;">'+esc(d.specialInstructions)+'</p></td></tr></table>' : '')
+    + photoSection
+    + '</td></tr>'
+    + '<tr><td style="padding:24px 40px;text-align:center;">'
+    + '<table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr><td style="background-color:#a0d6b4;border-radius:8px;">'
+    + '<a href="'+assignUrl+'" target="_blank" style="display:inline-block;padding:14px 32px;font-size:13px;font-weight:700;color:#0a0a0a;text-decoration:none;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;">Assign Purpose &rarr;</a>'
+    + '</td></tr></table>'
+    + '<p style="margin:8px 0 0;font-size:11px;color:#888;">Let us know how you\'d like these materials used.</p>'
+    + '</td></tr>'
+    + '<tr><td style="background-color:#e8e8e8;padding:20px 40px;border-top:1px solid #d5d5d5;">'
+    + '<p style="margin:0;font-size:12px;color:#888;line-height:1.7;text-align:center;">Questions? Contact <a href="mailto:concierge@handslogistics.com" style="color:#a0d6b4;text-decoration:none;">concierge@handslogistics.com</a> &mdash; please report any discrepancies within 48 hours.</p>'
+    + '</td></tr>'
+    + '<tr><td style="padding:0;font-size:0;line-height:0;">'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr>'
+    + '<td width="68%" height="3" style="background-color:#1a1a1a;font-size:0;line-height:0;">&nbsp;</td>'
+    + '<td width="32%" height="3" style="background-color:#a0d6b4;font-size:0;line-height:0;">&nbsp;</td>'
+    + '</tr></table>'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td style="background-color:#0a0a0a;">'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:rgba(5,5,5,0.90);"><tr><td style="padding:32px 40px 36px;">'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>'
+    + '<td width="38%" style="vertical-align:top;padding-right:32px;border-right:1px solid rgba(255,255,255,0.12);">'
+    + '<p style="margin:0 0 6px;font-family:Georgia,serif;font-size:20px;color:#fff;line-height:1.2;">Concierge Desk</p>'
+    + '<p style="margin:0 0 20px;font-size:9px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:#a0d6b4;">HANDS Logistics</p>'
+    + '<table cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:#a0d6b4;border-radius:6px;">'
+    + '<a href="https://scheduleadelivery.netlify.app/" target="_blank" style="display:inline-block;padding:13px 20px;font-size:11px;font-weight:700;color:#0a0a0a;text-decoration:none;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;">Book Another Delivery</a>'
+    + '</td></tr></table></td>'
+    + '<td width="62%" style="vertical-align:top;padding-left:32px;">'
+    + '<p style="margin:0 0 18px;font-family:Georgia,serif;font-size:13px;font-style:italic;color:rgba(255,255,255,0.85);padding-bottom:18px;border-bottom:1px solid rgba(255,255,255,0.12);">Your logistics are in better HANDS.</p>'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0">'
+    + '<tr><td width="22" style="padding-bottom:12px;"><span style="color:#a0d6b4;">&#9993;</span></td><td style="padding-bottom:12px;"><a href="mailto:concierge@handslogistics.com" style="font-size:12px;color:#fff;text-decoration:none;">concierge@handslogistics.com</a></td></tr>'
+    + '<tr><td width="22" style="padding-bottom:12px;"><span style="color:#a0d6b4;">&#9832;</span></td><td style="padding-bottom:12px;"><a href="https://www.handslogistics.com" style="font-size:12px;color:#fff;text-decoration:none;">www.handslogistics.com</a></td></tr>'
+    + '<tr><td width="22"><span style="color:#a0d6b4;">&#9679;</span></td><td><span style="font-size:11px;color:rgba(255,255,255,0.75);line-height:1.5;">8540 Dean Martin Drive<br>Suite 160, Las Vegas, NV 89139</span></td></tr>'
+    + '</table></td></tr></table>'
+    + '<p style="margin:20px 0 0;font-size:8px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.35);">Brand Activations &nbsp;&middot;&nbsp; Events &nbsp;&middot;&nbsp; Concierge Logistics</p>'
+    + '</td></tr></table></td></tr></table></td></tr>'
+    + '</table></td></tr></table></body></html>';
 }
 
-// ── EMAIL PREVIEW ─────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+//  EMAIL PREVIEW — opens branded email in new tab
+// ══════════════════════════════════════════════════════════════
 function previewEmail() {
-  const d = {
+  var d = {
     direction: direction, itemId: 'PREVIEW',
     clientName: v('f-client') || '—', account: v('f-account') || '—',
     clientEmail: v('f-email') || '—', eventProject: v('f-project'),
@@ -796,82 +779,69 @@ function previewEmail() {
     photoUrl1: (photos[0] && photos[0].cloudinaryUrl) || (photos[0] && photos[0].preview) || '',
     photoUrl2: (photos[1] && photos[1].cloudinaryUrl) || (photos[1] && photos[1].preview) || '',
   };
-  const win = window.open('', '_blank');
+  var win = window.open('', '_blank');
   win.document.write(buildEmailHtml(d));
   win.document.close();
 }
 
-// ── PRINT BOL ─────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+//  PRINT BOL
+// ══════════════════════════════════════════════════════════════
 function printBOL() {
-  const isInbound = direction === 'inbound';
-  const bolHtml = `<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>BOL — PO #${createdItemId}</title>
-<style>
-  @media print { .no-print { display:none; } }
-  body { font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; background:#fff; color:#111; margin:0; padding:32px; }
-  .header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #a0d6b4; padding-bottom:16px; margin-bottom:24px; }
-  .badge { background:#a0d6b4; color:#0a0a0a; font-size:11px; font-weight:700; padding:5px 14px; border-radius:20px; letter-spacing:1px; text-transform:uppercase; }
-  .po-banner { background:#f5f5f5; padding:12px 16px; border-radius:6px; margin-bottom:24px; }
-  .section-header { background:#e2e2e2; padding:10px 18px; border-bottom:1px solid #d0d0d0; font-size:9.5px; font-weight:900; letter-spacing:3px; text-transform:uppercase; color:#a0d6b4; }
-  table.fields { width:100%; border-collapse:collapse; border:1px solid #d0d0d0; border-radius:6px; overflow:hidden; margin-bottom:24px; }
-  table.fields td { padding:10px 18px; font-size:13px; border-bottom:1px solid #e0e0e0; }
-  table.fields td:first-child { color:#888; width:38%; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; }
-  .sig-row { display:flex; gap:32px; margin-top:40px; }
-  .sig-box { flex:1; border-top:1px solid #ccc; padding-top:8px; font-size:11px; color:#888; }
-  .footer { margin-top:32px; font-size:10px; color:#aaa; text-align:center; border-top:1px solid #eee; padding-top:12px; }
-  button { background:#a0d6b4; color:#0a0a0a; border:none; padding:10px 24px; border-radius:6px; font-size:13px; font-weight:700; cursor:pointer; margin-bottom:20px; }
-</style></head><body>
-<div class="no-print"><button onclick="window.print()">Print / Save PDF</button></div>
-<div class="header">
-  <div>
-    <div style="font-size:11px;color:#888;letter-spacing:2px;text-transform:uppercase;">HANDS Logistics</div>
-    <div style="font-size:22px;font-weight:800;color:#0a0a0a;margin-top:4px;">${isInbound ? 'INBOUND RECEIPT' : 'OUTBOUND DISPATCH'}</div>
-  </div>
-  <div class="badge">${isInbound ? 'INBOUND' : 'OUTBOUND'}</div>
-</div>
-<div class="po-banner">
-  <div style="font-size:11px;color:#888;">Purchase Order #</div>
-  <div style="font-size:20px;font-weight:700;color:#a0d6b4;margin-top:4px;letter-spacing:1px;">${createdItemId}</div>
-</div>
-<table class="fields">
-  <tr><td colspan="2" class="section-header">01 — Order Information</td></tr>
-  <tr><td>Client</td><td>${v('f-client')}</td></tr>
-  <tr><td>Account / Brand</td><td>${v('f-account')}</td></tr>
-  <tr><td>Project / Event</td><td>${v('f-project')}</td></tr>
-  <tr><td>Purpose</td><td>${v('f-purpose')}</td></tr>
-</table>
-<table class="fields">
-  <tr><td colspan="2" class="section-header">02 — Shipment Details</td></tr>
-  <tr><td>${isInbound ? 'Date Received' : 'Ship Date'}</td><td>${v('f-date')}</td></tr>
-  <tr><td>Carrier</td><td>${v('f-carrier')}</td></tr>
-  <tr><td>Tracking #</td><td>${v('f-tracking')}</td></tr>
-  <tr><td>${isInbound ? 'Origin Address' : 'Ship-To Address'}</td><td>${v('f-address')}</td></tr>
-  <tr><td>Cartons</td><td>${v('f-cartons')}</td></tr>
-  <tr><td>Pallets</td><td>${v('f-pallets')}</td></tr>
-  <tr><td>Weight (lbs)</td><td>${v('f-weight')}</td></tr>
-  <tr><td>Contents</td><td>${v('f-contents')}</td></tr>
-  <tr><td>Special Instructions</td><td>${v('f-instructions')}</td></tr>
-  <tr><td>Handler</td><td>${v('f-handler')}</td></tr>
-</table>
-<div class="sig-row">
-  <div class="sig-box">Received / Shipped By</div>
-  <div class="sig-box">Signature</div>
-  <div class="sig-box">Date</div>
-</div>
-<div class="footer">HANDS Logistics · 8540 Dean Martin Dr, Suite 160, Las Vegas, NV 89139 · concierge@handslogistics.com</div>
-</body></html>`;
-  const win = window.open('', '_blank');
-  win.document.write(bolHtml);
+  var isInbound = direction === 'inbound';
+  var win = window.open('', '_blank');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>BOL — PO #'+createdItemId+'</title>'
+    +'<style>@media print{.np{display:none}}body{font-family:\'Helvetica Neue\',Helvetica,Arial,sans-serif;padding:32px;color:#111}'
+    +'.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #a0d6b4;padding-bottom:16px;margin-bottom:24px}'
+    +'.badge{background:#a0d6b4;color:#0a0a0a;font-size:11px;font-weight:700;padding:5px 14px;border-radius:20px;letter-spacing:1px;text-transform:uppercase}'
+    +'.po{background:#f5f5f5;padding:12px 16px;border-radius:6px;margin-bottom:24px}'
+    +'table.f{width:100%;border-collapse:collapse;border:1px solid #d0d0d0;border-radius:6px;margin-bottom:20px}'
+    +'table.f td{padding:10px 18px;font-size:13px;border-bottom:1px solid #e0e0e0}'
+    +'table.f td:first-child{color:#888;width:38%;font-size:12px;text-transform:uppercase;letter-spacing:0.5px}'
+    +'.sh{background:#e2e2e2;padding:10px 18px;font-size:9.5px;font-weight:900;letter-spacing:3px;text-transform:uppercase;color:#a0d6b4}'
+    +'.sigs{display:flex;gap:32px;margin-top:40px}.sig{flex:1;border-top:1px solid #ccc;padding-top:8px;font-size:11px;color:#888}'
+    +'.foot{margin-top:32px;font-size:10px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:12px}'
+    +'button{background:#a0d6b4;color:#0a0a0a;border:none;padding:10px 24px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:20px}'
+    +'</style></head><body>'
+    +'<div class="np"><button onclick="window.print()">Print / Save PDF</button></div>'
+    +'<div class="hdr"><div>'
+    +'<div style="font-size:11px;color:#888;letter-spacing:2px;text-transform:uppercase;">HANDS Logistics</div>'
+    +'<div style="font-size:22px;font-weight:800;color:#0a0a0a;margin-top:4px;">'+(isInbound?'INBOUND RECEIPT':'OUTBOUND DISPATCH')+'</div>'
+    +'</div><div class="badge">'+(isInbound?'INBOUND':'OUTBOUND')+'</div></div>'
+    +'<div class="po"><div style="font-size:11px;color:#888;">Purchase Order #</div>'
+    +'<div style="font-size:20px;font-weight:700;color:#a0d6b4;margin-top:4px;letter-spacing:1px;">'+createdItemId+'</div></div>'
+    +'<table class="f"><tr><td colspan="2" class="sh">01 — Order Information</td></tr>'
+    +'<tr><td>Client</td><td>'+v('f-client')+'</td></tr>'
+    +'<tr><td>Account / Brand</td><td>'+v('f-account')+'</td></tr>'
+    +'<tr><td>Project / Event</td><td>'+v('f-project')+'</td></tr>'
+    +'<tr><td>Purpose</td><td>'+v('f-purpose')+'</td></tr>'
+    +'</table>'
+    +'<table class="f"><tr><td colspan="2" class="sh">02 — Shipment Details</td></tr>'
+    +'<tr><td>'+(isInbound?'Date Received':'Ship Date')+'</td><td>'+v('f-date')+'</td></tr>'
+    +'<tr><td>Carrier</td><td>'+v('f-carrier')+'</td></tr>'
+    +'<tr><td>Tracking #</td><td>'+v('f-tracking')+'</td></tr>'
+    +'<tr><td>'+(isInbound?'Origin Address':'Ship-To Address')+'</td><td>'+v('f-address')+'</td></tr>'
+    +'<tr><td>Cartons</td><td>'+v('f-cartons')+'</td></tr>'
+    +'<tr><td>Pallets</td><td>'+v('f-pallets')+'</td></tr>'
+    +'<tr><td>Weight (lbs)</td><td>'+v('f-weight')+'</td></tr>'
+    +'<tr><td>Contents</td><td>'+v('f-contents')+'</td></tr>'
+    +'<tr><td>Handler</td><td>'+v('f-handler')+'</td></tr>'
+    +'</table>'
+    +'<div class="sigs"><div class="sig">Received / Shipped By</div><div class="sig">Signature</div><div class="sig">Date</div></div>'
+    +'<div class="foot">HANDS Logistics · 8540 Dean Martin Dr, Suite 160, Las Vegas, NV 89139 · concierge@handslogistics.com</div>'
+    +'</body></html>');
   win.document.close();
 }
 
-// ── SEND EMAIL VIA NETLIFY FUNCTION ───────────────────────────
+// ══════════════════════════════════════════════════════════════
+//  SEND EMAIL — server-side via Netlify function
+// ══════════════════════════════════════════════════════════════
 async function sendEmail(itemId, formData, photoUrls) {
-  const res = await fetch(CONFIG.EMAIL_FUNCTION, {
+  var res = await fetch(CONFIG.EMAIL_FUNCTION, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      itemId,
+      itemId:              itemId,
       direction:           formData.direction,
       clientName:          formData.client,
       clientEmail:         formData.email,
@@ -895,11 +865,10 @@ async function sendEmail(itemId, formData, photoUrls) {
     }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error('Email send failed: ' + (err.error || res.status));
+    var err = await res.json().catch(function() { return {}; });
+    throw new Error('Email failed: ' + (err.error || res.status));
   }
 }
-
 
 
 // ══════════════════════════════════════════════════════════════
@@ -1018,7 +987,7 @@ async function submitForm() {
     }
     fill.style.width = '90%';
 
-    // Step 4: Send email via Resend
+    // Step 4: Send email via Netlify function (Resend)
     if (sendEmail) {
       showMsg(msg, 'info', 'Step 4/4 — Sending client notification…');
       await sendEmail(itemId, formData, photoUrls);
@@ -1085,7 +1054,6 @@ function newEntry() {
 
 // Set today's date as default
 document.getElementById('f-date').valueAsDate = new Date();
-
 </script>
 </body>
 </html>
