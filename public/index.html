@@ -891,7 +891,7 @@ function exitEditMode() {
    'f-address','f-contents','f-instructions','f-labor','f-billable','f-billing-status']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   photos = [];
-  renderPhotoPreviews();
+  renderPreviews();
   updateSubmitButtonLabel();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -987,7 +987,7 @@ function populateFormFromItem(item) {
 
   // Clear any queued new uploads
   photos = [];
-  renderPhotoPreviews();
+  renderPreviews();
 }
 
 // ══════════════════════════════════════════════════════════════
