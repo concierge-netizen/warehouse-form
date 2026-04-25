@@ -128,6 +128,28 @@ h1,h2,h3,.bebas{font-family:'Bebas Neue',Impact,Arial,sans-serif;font-weight:400
 /* ── NUMBER BADGE ── */
 .count-badge{display:inline-block;background:var(--green-dim);color:var(--green);font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:1px;margin-left:6px;}
 
+/* ── RECALL BAR ── */
+.recall-bar{background:var(--card);border:1px solid var(--border);border-radius:5px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.recall-bar .rb-label{font-family:'Bebas Neue',Impact,Arial,sans-serif;font-size:13px;letter-spacing:2px;color:var(--label);white-space:nowrap;}
+.recall-bar .rb-input{flex:1;min-width:120px;background:#0a0a0a;border:1px solid var(--border);border-radius:3px;color:var(--body);padding:8px 11px;font-family:inherit;font-size:13px;outline:none;}
+.recall-bar .rb-input:focus{border-color:#444;}
+.recall-bar .rb-btn{padding:8px 16px;background:var(--card2);border:1px solid var(--border);color:var(--body);border-radius:3px;font-family:'Bebas Neue',Impact,Arial,sans-serif;font-size:12px;letter-spacing:2px;cursor:pointer;transition:all 0.15s;}
+.recall-bar .rb-btn:hover{border-color:var(--green);color:var(--green);}
+.recall-bar .rb-btn.primary{background:var(--green);color:#0a0a0a;border-color:var(--green);}
+.recall-bar .rb-btn.primary:hover{filter:brightness(1.08);}
+.recall-bar .rb-btn:disabled{opacity:0.45;cursor:not-allowed;}
+.recall-msg{font-size:11px;color:var(--label);margin-left:4px;}
+.recall-msg.err{color:#ff9a92;}
+.recall-msg.ok{color:var(--green);}
+
+/* ── EDITING BANNER ── */
+.edit-banner{background:#fdab3d18;border:1px solid #fdab3d;border-radius:5px;padding:12px 16px;margin-bottom:18px;display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.edit-banner.show{display:flex;}
+.edit-banner .eb-msg{font-size:12px;color:#fdab3d;font-weight:600;letter-spacing:0.5px;}
+.edit-banner .eb-msg strong{color:#fff;}
+.edit-banner .eb-exit{background:transparent;border:1px solid #fdab3d;color:#fdab3d;padding:6px 12px;border-radius:3px;font-family:'Bebas Neue',Impact,Arial,sans-serif;font-size:11px;letter-spacing:1.5px;cursor:pointer;}
+.edit-banner .eb-exit:hover{background:#fdab3d22;}
+
 @media(max-width:600px){
   .row.col2,.row.col3{grid-template-columns:1fr;}
   .photo-previews{grid-template-columns:1fr;}
@@ -150,6 +172,20 @@ h1,h2,h3,.bebas{font-family:'Bebas Neue',Impact,Arial,sans-serif;font-weight:400
 <div class="accent-bar"><div class="a1"></div><div class="a2"></div></div>
 
 <div class="page">
+
+  <!-- RECALL BAR: fetch existing PO to edit -->
+  <div class="recall-bar">
+    <span class="rb-label">Edit existing PO:</span>
+    <input type="text" class="rb-input" id="recall-po" placeholder="Enter Monday PO# (item id)" inputmode="numeric" autocomplete="off">
+    <button type="button" class="rb-btn primary" id="recall-btn" onclick="recallItem()">Load</button>
+    <span class="recall-msg" id="recall-msg"></span>
+  </div>
+
+  <!-- EDITING BANNER (appears when in edit mode) -->
+  <div class="edit-banner" id="edit-banner">
+    <div class="eb-msg">EDITING <strong id="eb-po">PO #—</strong> &middot; <span id="eb-detail">changes will update the existing Monday item</span></div>
+    <button type="button" class="eb-exit" onclick="exitEditMode()">Exit Edit Mode</button>
+  </div>
 
   <!-- DIRECTION HERO -->
   <div class="direction-hero inbound" id="direction-hero">
@@ -351,7 +387,7 @@ h1,h2,h3,.bebas{font-family:'Bebas Neue',Impact,Arial,sans-serif;font-weight:400
   <!-- §5 SUBMIT + EMAIL TRIGGERS -->
   <div class="submit-area">
     <div class="sa-head">Create Record &amp; Notify</div>
-    <p style="font-size:12px;font-weight:300;color:var(--muted);margin-bottom:14px;line-height:1.65;">Creates the Monday.com item, uploads photos, and optionally triggers the branded client email via Resend.</p>
+    <p style="font-size:12px;font-weight:300;color:var(--muted);margin-bottom:14px;line-height:1.65;">Creates the Monday.com item, uploads photos, and optionally triggers the branded client email via Zapier.</p>
 
     <div class="email-options">
       <div class="email-opt">
@@ -369,9 +405,11 @@ h1,h2,h3,.bebas{font-family:'Bebas Neue',Impact,Arial,sans-serif;font-weight:400
 
     <div class="submit-row" style="margin-top:14px;">
       <button class="btn btn-primary" id="submit-btn" onclick="submitForm()">Create &amp; Notify</button>
-      <button class="btn btn-ghost" type="button" onclick="previewEmail()">&#128065; Preview Email</button>
+      <button class="btn btn-outline" onclick="previewBolFromForm('full')" title="Preview 8.5×11 BOL with current form data">👁 Preview Full BOL</button>
+      <button class="btn btn-outline" onclick="previewBolFromForm('condensed')" title="Preview 4×6 BOL with current form data">👁 Preview 4×6</button>
       <button class="btn btn-ghost" onclick="resetForm()">Clear Form</button>
     </div>
+    <p style="font-size:10px;color:#444;margin-top:10px;line-height:1.5;">Preview BOLs before submitting — PO # will show as <strong style="color:var(--label);">DRAFT</strong>. After creating the record, a real PO will be assigned.</p>
   </div>
 
   </div><!-- /form-panel -->
@@ -384,10 +422,29 @@ h1,h2,h3,.bebas{font-family:'Bebas Neue',Impact,Arial,sans-serif;font-weight:400
     <div class="sc-po">PO #<span id="sc-po-val">—</span></div>
     <p style="font-size:12px;color:#444;">Client: <span id="sc-client-val"></span> &bull; <span id="sc-account-val"></span></p>
     <div class="sc-links">
+      <button class="btn btn-primary" onclick="openBolPicker()" style="background:var(--warn);">📄 Generate BOL</button>
       <a id="sc-monday-link" href="#" target="_blank" class="btn btn-outline" style="text-decoration:none;">Open in Monday</a>
       <a id="sc-billing-link" href="#" target="_blank" class="btn btn-ghost" style="text-decoration:none;display:none;">Billing Record</a>
-      <button class="btn btn-ghost" type="button" id="sc-bol-btn" onclick="printBOL()" style="display:none;">&#128438; Print BOL</button>
-      <button class="btn btn-primary" onclick="newEntry()">New Entry</button>
+      <button class="btn btn-ghost" onclick="newEntry()">New Entry</button>
+    </div>
+  </div>
+
+  <!-- BOL PICKER MODAL -->
+  <div id="bol-picker" style="display:none;position:fixed;inset:0;background:#0a0a0ad9;z-index:200;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:28px;max-width:440px;width:100%;">
+      <div style="font-family:'Bebas Neue',Impact,Arial,sans-serif;font-size:20px;letter-spacing:2px;color:var(--green);margin-bottom:8px;">Choose BOL Format</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:20px;">Both formats pull live data from the Monday record.</p>
+      <div style="display:grid;gap:10px;">
+        <button class="btn btn-primary" onclick="generateBol('full')" style="padding:16px;text-align:left;">
+          <div style="font-size:13px;letter-spacing:1.5px;">📄 Full BOL — 8.5 × 11</div>
+          <div style="font-size:10px;font-weight:400;opacity:.7;margin-top:2px;letter-spacing:.5px;text-transform:none;">Detailed carrier/shipper/consignee, items table, signatures, terms</div>
+        </button>
+        <button class="btn btn-outline" onclick="generateBol('condensed')" style="padding:16px;text-align:left;">
+          <div style="font-size:13px;letter-spacing:1.5px;">🏷️ Condensed BOL — 4 × 6</div>
+          <div style="font-size:10px;font-weight:400;opacity:.7;margin-top:2px;letter-spacing:.5px;text-transform:none;">Thermal-printer friendly, key fields only</div>
+        </button>
+        <button class="btn btn-ghost" onclick="document.getElementById('bol-picker').style.display='none';" style="margin-top:6px;">Cancel</button>
+      </div>
     </div>
   </div>
 
@@ -395,23 +452,326 @@ h1,h2,h3,.bebas{font-family:'Bebas Neue',Impact,Arial,sans-serif;font-weight:400
 
 <script>
 // ══════════════════════════════════════════════════════════════
+//  HANDS BOL GENERATOR  (shared)
+//  Exposes window.HANDS_BOL.{ openPreview, buildFullBol, buildCondensedBol }
+//  Data shape expected:
+//    { direction:'inbound'|'outbound', client, account, email, phone,
+//      project, purpose, wbs, handler, date, time, status,
+//      carrier, tracking, cartons, pallets, weight,
+//      address, contents, instructions }
+// ══════════════════════════════════════════════════════════════
+(function(){
+  function esc(s) {
+    return (s == null ? '' : String(s))
+      .replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function fmtDate(iso) {
+    if (!iso) return '';
+    const p = String(iso).split('-');
+    if (p.length !== 3) return iso;
+    return p[1] + '/' + p[2] + '/' + p[0];
+  }
+
+  // ── FULL 8.5 × 11 BOL ────────────────────────────────────────
+  function buildFullBol(d, po) {
+    d = d || {}; po = po || '—';
+    const dir      = d.direction === 'outbound' ? 'OUTBOUND' : 'INBOUND';
+    const dirColor = d.direction === 'outbound' ? '#579bfc' : '#fdab3d';
+    const hands = {
+      name: 'HANDS LOGISTICS LLC',
+      addr: '8540 Dean Martin Drive, Suite 160<br>Las Vegas, NV 89139<br>concierge@handslogistics.com &bull; 702.602.7110'
+    };
+    const clientBlock = {
+      name: esc(d.client || '—'),
+      addr: esc((d.address || '').replace(/\n/g,'<br>') || '—')
+    };
+    const shipper   = d.direction === 'outbound' ? hands : clientBlock;
+    const consignee = d.direction === 'outbound' ? clientBlock : hands;
+
+    return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>BOL #' + esc(po) + ' — ' + dir + '</title>' +
+'<style>' +
+'@page { size: 8.5in 11in; margin: 0.4in; }' +
+'* { box-sizing: border-box; margin: 0; padding: 0; }' +
+'body { font-family: "Helvetica Neue", Arial, sans-serif; color: #000; background: #fff; font-size: 10px; line-height: 1.35; }' +
+'.page { max-width: 7.7in; margin: 0 auto; padding: 12px; }' +
+'.top { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #000; padding-bottom: 10px; margin-bottom: 12px; }' +
+'.brand { font-family: "Bebas Neue", Impact, sans-serif; font-size: 26px; letter-spacing: 3px; font-weight: 700; }' +
+'.brand-sub { font-size: 9px; color: #444; margin-top: 2px; letter-spacing: 1px; text-transform: uppercase; }' +
+'.title-block { text-align: right; }' +
+'.title-block .title { font-size: 20px; font-weight: 700; letter-spacing: 2px; }' +
+'.dir-badge { display: inline-block; padding: 4px 14px; background: ' + dirColor + '; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; margin-top: 4px; }' +
+'.po-label { font-size: 9px; color: #666; margin-top: 6px; text-transform: uppercase; letter-spacing: 1.5px; }' +
+'.po-val { font-family: "Courier New", monospace; font-size: 14px; font-weight: 700; letter-spacing: 1px; }' +
+'.meta-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; margin-bottom: 10px; }' +
+'.meta-cell { border: 1px solid #000; padding: 5px 7px; }' +
+'.meta-cell .lbl { font-size: 7.5px; color: #666; letter-spacing: 1.5px; text-transform: uppercase; }' +
+'.meta-cell .val { font-size: 11px; font-weight: 700; margin-top: 1px; }' +
+'.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }' +
+'.box { border: 1.5px solid #000; padding: 8px 10px; min-height: 90px; }' +
+'.box-head { font-weight: 700; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; padding-bottom: 4px; border-bottom: 1px solid #000; margin-bottom: 6px; }' +
+'.box-body { font-size: 10px; line-height: 1.45; }' +
+'.box-body .name { font-weight: 700; font-size: 11px; margin-bottom: 2px; }' +
+'.section-title { font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; background: #000; color: #fff; padding: 3px 8px; margin: 10px 0 4px; }' +
+'table.items { width: 100%; border-collapse: collapse; font-size: 9.5px; margin-bottom: 8px; }' +
+'table.items th { background: #222; color: #fff; padding: 5px 6px; text-align: left; font-size: 8.5px; letter-spacing: 1px; text-transform: uppercase; }' +
+'table.items td { padding: 6px; border: 1px solid #000; vertical-align: top; }' +
+'table.items tr.totals td { background: #f0f0f0; font-weight: 700; }' +
+'.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px; }' +
+'.info-cell { border: 1px solid #000; padding: 5px 8px; }' +
+'.info-cell .lbl { font-size: 7.5px; color: #555; letter-spacing: 1.5px; text-transform: uppercase; }' +
+'.info-cell .val { font-size: 10.5px; font-weight: 600; margin-top: 1px; min-height: 13px; }' +
+'.notes { border: 1px solid #000; padding: 6px 9px; min-height: 50px; font-size: 10px; margin-bottom: 8px; }' +
+'.terms { border: 1px solid #888; padding: 7px 10px; font-size: 7.5px; color: #333; line-height: 1.5; margin-bottom: 10px; background: #fafafa; }' +
+'.sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }' +
+'.sig-box { border: 1.5px solid #000; padding: 10px; min-height: 90px; display: flex; flex-direction: column; }' +
+'.sig-head { font-weight: 700; font-size: 9.5px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }' +
+'.sig-line { border-bottom: 1px solid #000; margin: 18px 0 4px; }' +
+'.sig-lbl { font-size: 8px; color: #555; letter-spacing: 1px; text-transform: uppercase; }' +
+'.footer { margin-top: 12px; padding-top: 6px; border-top: 1px solid #000; font-size: 8px; color: #666; display: flex; justify-content: space-between; }' +
+'.actions { max-width: 7.7in; margin: 0 auto 12px; display: flex; gap: 8px; padding: 12px; font-family: Arial, sans-serif; }' +
+'.pb { padding: 10px 20px; font-size: 12px; font-weight: 700; letter-spacing: 1.5px; cursor: pointer; border: none; }' +
+'.pb-print { background: #000; color: #fff; }' +
+'.pb-close { background: #ddd; color: #000; }' +
+'@media print { .actions { display: none; } body { font-size: 9.5px; } .page { padding: 0; } }' +
+'</style></head><body>' +
+'<div class="actions">' +
+  '<button class="pb pb-print" onclick="window.print()">\uD83D\uDDA8 Print / Save as PDF</button>' +
+  '<button class="pb pb-close" onclick="window.close()">Close</button>' +
+'</div>' +
+'<div class="page">' +
+  '<div class="top">' +
+    '<div>' +
+      '<div class="brand">HANDS LOGISTICS</div>' +
+      '<div class="brand-sub">Concierge 3PL &bull; Las Vegas, NV</div>' +
+    '</div>' +
+    '<div class="title-block">' +
+      '<div class="title">BILL OF LADING</div>' +
+      '<div class="dir-badge">' + dir + '</div>' +
+      '<div class="po-label">PO / Tracking #</div>' +
+      '<div class="po-val">' + esc(po) + '</div>' +
+    '</div>' +
+  '</div>' +
+  '<div class="meta-row">' +
+    '<div class="meta-cell"><div class="lbl">Date</div><div class="val">' + esc(fmtDate(d.date)) + '</div></div>' +
+    '<div class="meta-cell"><div class="lbl">Time</div><div class="val">' + esc(d.time || '—') + '</div></div>' +
+    '<div class="meta-cell"><div class="lbl">Direction</div><div class="val">' + dir + '</div></div>' +
+    '<div class="meta-cell"><div class="lbl">Account / Brand</div><div class="val">' + esc(d.account || '—') + '</div></div>' +
+  '</div>' +
+  '<div class="pair">' +
+    '<div class="box">' +
+      '<div class="box-head">Shipper / From</div>' +
+      '<div class="box-body">' +
+        '<div class="name">' + shipper.name + '</div>' +
+        '<div>' + shipper.addr + '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="box">' +
+      '<div class="box-head">Consignee / Ship To</div>' +
+      '<div class="box-body">' +
+        '<div class="name">' + consignee.name + '</div>' +
+        '<div>' + consignee.addr + '</div>' +
+        (d.email ? '<div style="margin-top:4px;">' + esc(d.email) + '</div>' : '') +
+        (d.phone ? '<div>' + esc(d.phone) + '</div>' : '') +
+      '</div>' +
+    '</div>' +
+  '</div>' +
+  '<div class="grid3">' +
+    '<div class="info-cell"><div class="lbl">Carrier</div><div class="val">' + esc(d.carrier || '—') + '</div></div>' +
+    '<div class="info-cell"><div class="lbl">Tracking / PRO #</div><div class="val">' + esc(d.tracking || '—') + '</div></div>' +
+    '<div class="info-cell"><div class="lbl">Event / Project</div><div class="val">' + esc(d.project || '—') + '</div></div>' +
+  '</div>' +
+  '<div class="grid3">' +
+    '<div class="info-cell"><div class="lbl">Material Purpose</div><div class="val">' + esc(d.purpose || '—') + '</div></div>' +
+    '<div class="info-cell"><div class="lbl">WBS / Invoice Code</div><div class="val">' + esc(d.wbs || '—') + '</div></div>' +
+    '<div class="info-cell"><div class="lbl">Handled By</div><div class="val">' + esc(d.handler || '—') + '</div></div>' +
+  '</div>' +
+  '<div class="section-title">Shipment Contents</div>' +
+  '<table class="items">' +
+    '<thead><tr>' +
+      '<th style="width:15%;">Cartons</th>' +
+      '<th style="width:15%;">Pallets</th>' +
+      '<th style="width:15%;">Weight (lbs)</th>' +
+      '<th>Description / Contents</th>' +
+    '</tr></thead>' +
+    '<tbody>' +
+      '<tr>' +
+        '<td>' + esc(d.cartons || '—') + '</td>' +
+        '<td>' + esc(d.pallets || '—') + '</td>' +
+        '<td>' + esc(d.weight || '—') + '</td>' +
+        '<td>' + esc(d.contents || '—').replace(/\n/g,'<br>') + '</td>' +
+      '</tr>' +
+      '<tr class="totals">' +
+        '<td>Total Cartons: ' + esc(d.cartons || '0') + '</td>' +
+        '<td>Total Pallets: ' + esc(d.pallets || '0') + '</td>' +
+        '<td>Total Weight: ' + esc(d.weight || '0') + ' lbs</td>' +
+        '<td style="text-align:right;">Status: <strong>' + esc(d.status || '—') + '</strong></td>' +
+      '</tr>' +
+    '</tbody>' +
+  '</table>' +
+  (d.instructions
+    ? '<div class="section-title">Special Instructions</div><div class="notes">' + esc(d.instructions).replace(/\n/g,'<br>') + '</div>'
+    : '') +
+  '<div class="terms">' +
+    '<strong>TERMS &amp; CONDITIONS:</strong> Received subject to the classifications and tariffs in effect on the date of issue. ' +
+    'The property described above, in apparent good order (contents and condition of contents of packages unknown), is marked, consigned, and destined as indicated. ' +
+    'HANDS Logistics LLC agrees to carry to its usual place of delivery at said destination. ' +
+    'Any deficiency in count, damaged or missing items must be noted upon receipt. ' +
+    'Signature below acknowledges receipt of the goods described and acceptance of these terms. ' +
+    'Limitation of liability applies per carrier tariff.' +
+  '</div>' +
+  '<div class="sig-grid">' +
+    '<div class="sig-box">' +
+      '<div class="sig-head">Shipper Signature</div>' +
+      '<div class="sig-line"></div>' +
+      '<div class="sig-lbl">Signature &amp; Date</div>' +
+      '<div class="sig-line" style="margin-top:18px;"></div>' +
+      '<div class="sig-lbl">Print Name</div>' +
+    '</div>' +
+    '<div class="sig-box">' +
+      '<div class="sig-head">Consignee / Driver Signature</div>' +
+      '<div class="sig-line"></div>' +
+      '<div class="sig-lbl">Signature &amp; Date</div>' +
+      '<div class="sig-line" style="margin-top:18px;"></div>' +
+      '<div class="sig-lbl">Print Name</div>' +
+    '</div>' +
+  '</div>' +
+  '<div class="footer">' +
+    '<div>HANDS Logistics &bull; 8540 Dean Martin Dr, Ste 160, Las Vegas NV 89139</div>' +
+    '<div>BOL #' + esc(po) + ' &bull; Generated ' + new Date().toLocaleString() + '</div>' +
+  '</div>' +
+'</div>' +
+'</body></html>';
+  }
+
+  // ── CONDENSED 4 × 6 BOL ──────────────────────────────────────
+  function buildCondensedBol(d, po) {
+    d = d || {}; po = po || '—';
+    const dir = d.direction === 'outbound' ? 'OUTBOUND' : 'INBOUND';
+    const toLabel = d.direction === 'outbound' ? 'SHIP TO' : 'RECEIVED AT';
+
+    return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>BOL ' + esc(po) + '</title>' +
+'<style>' +
+'@page { size: 4in 6in; margin: 0.12in; }' +
+'* { box-sizing: border-box; margin: 0; padding: 0; }' +
+'body { font-family: "Helvetica Neue", Arial, sans-serif; color: #000; background: #fff; font-size: 8.5px; line-height: 1.3; }' +
+'.label { width: 3.76in; padding: 0; }' +
+'.hdr { border-bottom: 2px solid #000; padding-bottom: 3px; margin-bottom: 4px; text-align: center; }' +
+'.brand { font-family: "Bebas Neue", Impact, sans-serif; font-size: 15px; font-weight: 700; letter-spacing: 2px; }' +
+'.sub { font-size: 7px; letter-spacing: 1px; margin-top: 1px; }' +
+'.dir { background: #000; color: #fff; text-align: center; padding: 3px; font-weight: 700; font-size: 11px; letter-spacing: 3px; margin: 3px 0; }' +
+'.po { text-align: center; font-family: "Courier New", monospace; font-size: 16px; font-weight: 700; letter-spacing: 1px; border: 2px solid #000; padding: 4px; margin-bottom: 4px; }' +
+'.sect { margin-bottom: 4px; }' +
+'.sect-h { font-size: 7px; font-weight: 700; letter-spacing: 1.5px; background: #000; color: #fff; padding: 1px 4px; }' +
+'.sect-b { border: 1px solid #000; border-top: 0; padding: 3px 5px; font-size: 8.5px; line-height: 1.35; }' +
+'.sect-b .name { font-weight: 700; font-size: 9.5px; }' +
+'.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin-bottom: 4px; }' +
+'.cell { border: 1px solid #000; padding: 2px 4px; }' +
+'.cell .l { font-size: 6.5px; color: #444; letter-spacing: 1px; text-transform: uppercase; }' +
+'.cell .v { font-size: 9.5px; font-weight: 700; }' +
+'.qty-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3px; margin-bottom: 4px; }' +
+'.qty { border: 1.5px solid #000; padding: 2px 4px; text-align: center; }' +
+'.qty .l { font-size: 6.5px; letter-spacing: 1px; text-transform: uppercase; }' +
+'.qty .v { font-size: 12px; font-weight: 700; font-family: "Courier New", monospace; }' +
+'.contents { border: 1px solid #000; padding: 3px 5px; font-size: 8px; min-height: 26px; margin-bottom: 4px; }' +
+'.contents .l { font-size: 6.5px; letter-spacing: 1px; text-transform: uppercase; font-weight: 700; margin-bottom: 1px; }' +
+'.sig-row { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin-top: 3px; }' +
+'.sig-cell { border: 1px solid #000; padding: 3px; min-height: 34px; }' +
+'.sig-cell .l { font-size: 6.5px; letter-spacing: 1px; text-transform: uppercase; font-weight: 700; }' +
+'.sig-cell .line { border-bottom: 1px solid #000; margin-top: 18px; }' +
+'.ftr { text-align: center; font-size: 6px; color: #333; margin-top: 3px; }' +
+'.actions { padding: 8px; text-align: center; font-family: Arial, sans-serif; }' +
+'.pb { padding: 6px 14px; font-size: 10px; font-weight: 700; cursor: pointer; border: none; margin: 0 3px; }' +
+'.pb-print { background: #000; color: #fff; }' +
+'.pb-close { background: #ddd; }' +
+'@media print { .actions { display: none; } }' +
+'</style></head><body>' +
+'<div class="actions">' +
+  '<button class="pb pb-print" onclick="window.print()">\uD83D\uDDA8 Print</button>' +
+  '<button class="pb pb-close" onclick="window.close()">Close</button>' +
+'</div>' +
+'<div class="label">' +
+  '<div class="hdr">' +
+    '<div class="brand">HANDS LOGISTICS</div>' +
+    '<div class="sub">BILL OF LADING</div>' +
+  '</div>' +
+  '<div class="dir">' + dir + '</div>' +
+  '<div class="po">' + esc(po) + '</div>' +
+  '<div class="grid">' +
+    '<div class="cell"><div class="l">Date</div><div class="v">' + esc(fmtDate(d.date)) + '</div></div>' +
+    '<div class="cell"><div class="l">Account</div><div class="v">' + esc(d.account || '—') + '</div></div>' +
+  '</div>' +
+  '<div class="sect">' +
+    '<div class="sect-h">CLIENT</div>' +
+    '<div class="sect-b">' +
+      '<div class="name">' + esc(d.client || '—') + '</div>' +
+      (d.email ? '<div>' + esc(d.email) + '</div>' : '') +
+      (d.phone ? '<div>' + esc(d.phone) + '</div>' : '') +
+    '</div>' +
+  '</div>' +
+  '<div class="sect">' +
+    '<div class="sect-h">' + toLabel + '</div>' +
+    '<div class="sect-b">' + esc((d.address || '—').replace(/\n/g,'<br>')) + '</div>' +
+  '</div>' +
+  '<div class="grid">' +
+    '<div class="cell"><div class="l">Carrier</div><div class="v">' + esc(d.carrier || '—') + '</div></div>' +
+    '<div class="cell"><div class="l">Tracking</div><div class="v" style="font-size:8.5px;">' + esc(d.tracking || '—') + '</div></div>' +
+  '</div>' +
+  '<div class="qty-row">' +
+    '<div class="qty"><div class="l">Cartons</div><div class="v">' + esc(d.cartons || '0') + '</div></div>' +
+    '<div class="qty"><div class="l">Pallets</div><div class="v">' + esc(d.pallets || '0') + '</div></div>' +
+    '<div class="qty"><div class="l">Lbs</div><div class="v">' + esc(d.weight || '0') + '</div></div>' +
+  '</div>' +
+  '<div class="contents">' +
+    '<div class="l">Contents</div>' +
+    esc(d.contents || '—').replace(/\n/g,'<br>') +
+  '</div>' +
+  '<div class="sig-row">' +
+    '<div class="sig-cell"><div class="l">Shipper Sign</div><div class="line"></div></div>' +
+    '<div class="sig-cell"><div class="l">Receiver Sign</div><div class="line"></div></div>' +
+  '</div>' +
+  '<div class="ftr">HANDS Logistics &bull; 702.602.7110</div>' +
+'</div>' +
+'</body></html>';
+  }
+
+  // Opens preview in new tab
+  function openPreview(type, data, po) {
+    const html = type === 'condensed' ? buildCondensedBol(data, po) : buildFullBol(data, po);
+    const w = window.open('', '_blank');
+    if (!w) {
+      alert('Popup blocked — allow popups for this site to open the BOL.');
+      return null;
+    }
+    w.document.write(html);
+    w.document.close();
+    return w;
+  }
+
+  window.HANDS_BOL = {
+    buildFullBol: buildFullBol,
+    buildCondensedBol: buildCondensedBol,
+    openPreview: openPreview
+  };
+})();
+
+// ══════════════════════════════════════════════════════════════
 //  CONFIG — update these values
 // ══════════════════════════════════════════════════════════════
 const CONFIG = {
   // Monday.com
   MONDAY_API_URL:    'https://api.monday.com/v2',
-  MONDAY_API_TOKEN:  'eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjYzNjEzNzc5MSwiYWFpIjoxMSwidWlkIjoxNDk4NzI0NSwiaWFkIjoiMjAyNi0wMy0yMlQxNzoyNTo1MC4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6NjYxOTgxNSwicmduIjoidXNlMSJ9.RLTGytTbLaran19E20Ag8nzxdaWuwVKVZNx3fdvAIBQ',
+  MONDAY_API_TOKEN:  'eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjYzNjEzNzc5MSwiYWFpIjoxMSwidWlkIjoxNDk4NzI0NSwiaWFkIjoiMjAyNi0wMy0yMlQxNzoyNTo1MC4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6NjYxOTgxNSwicmduIjoidXNlMSJ9.RLTGytTbLaran19E20Ag8nzxdaWuwVKVZNx3fdvAIBQ',   // paste token
   BOARD_ID:          '18405667848',
-  GROUP_INBOUND:     'topics',        // "Inbound 2nd Qtr"
-  GROUP_OUTBOUND:    'new_group',     // "Outbound 2nd Otr"
+  GROUP_INBOUND:     'topics',        // "Activity" — single group for both directions
+  GROUP_OUTBOUND:    'topics',        // same group; filter by Direction column in Monday view
 
   // Cloudinary
   CLOUDINARY_CLOUD:  'dxkpbjicu',
   CLOUDINARY_PRESET: 'hands_pod_photos',
   CLOUDINARY_URL:    'https://api.cloudinary.com/v1_1/dxkpbjicu/image/upload',
 
-  // Email (server-side via Netlify function)
-  EMAIL_FUNCTION:    '/.netlify/functions/send-email',
+  // I/O notice email endpoint (replaces dead Zapier hooks)
+  IO_NOTICE_URL:     'https://dcconfirm.netlify.app/api/send-io-notice',
 
   // Billing portal
   BILLING_BASE_URL:  'https://handslogistics.netlify.app/billing',
@@ -455,6 +815,281 @@ const COLS = {
 let direction = 'inbound';
 let photos    = [];   // { file, preview, cloudinaryUrl, status }
 let createdItemId = null;
+// Edit-mode state — when set, submit updates this item instead of creating new
+let editingItemId = null;
+// Pre-existing photos on the item being edited (so we don't overwrite them)
+let existingPhotoSlots = { slot1Used: false, slot2Used: false };
+
+// ══════════════════════════════════════════════════════════════
+//  RECALL (edit existing PO)
+// ══════════════════════════════════════════════════════════════
+async function recallItem() {
+  const input = document.getElementById('recall-po');
+  const msg   = document.getElementById('recall-msg');
+  const btn   = document.getElementById('recall-btn');
+  const po    = input.value.trim();
+
+  msg.className = 'recall-msg';
+  msg.textContent = '';
+
+  if (!po || !/^\d{6,}$/.test(po)) {
+    msg.className = 'recall-msg err';
+    msg.textContent = 'Enter a valid PO# (numeric Monday item id).';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Loading…';
+  msg.textContent = 'Fetching from Monday…';
+
+  try {
+    // Query all columns needed to rehydrate the form
+    const q = `{ items(ids:[${po}]) { id name board { id } column_values { id text value } } }`;
+    const res = await fetch(CONFIG.MONDAY_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization': CONFIG.MONDAY_API_TOKEN, 'API-Version':'2023-04' },
+      body: JSON.stringify({ query: q })
+    });
+    const data = await res.json();
+    if (data.errors) throw new Error(data.errors[0].message);
+    const item = data.data.items && data.data.items[0];
+    if (!item) throw new Error('Item not found on Monday');
+    if (item.board && String(item.board.id) !== String(CONFIG.BOARD_ID)) {
+      throw new Error('That PO is on a different board (id ' + item.board.id + '). This form only edits NV I/O items.');
+    }
+
+    populateFormFromItem(item);
+
+    editingItemId = item.id;
+    document.getElementById('eb-po').textContent = 'PO #' + item.id;
+    document.getElementById('eb-detail').textContent = item.name + ' · changes will update the existing item';
+    document.getElementById('edit-banner').classList.add('show');
+    updateSubmitButtonLabel();
+
+    msg.className = 'recall-msg ok';
+    msg.textContent = 'Loaded. Scroll down to review and save changes.';
+  } catch (err) {
+    msg.className = 'recall-msg err';
+    msg.textContent = 'Recall failed: ' + err.message;
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Load';
+  }
+}
+
+function exitEditMode() {
+  editingItemId = null;
+  existingPhotoSlots = { slot1Used: false, slot2Used: false };
+  document.getElementById('edit-banner').classList.remove('show');
+  document.getElementById('recall-po').value = '';
+  document.getElementById('recall-msg').textContent = '';
+  document.getElementById('recall-msg').className = 'recall-msg';
+  // Clear all inputs so the form is ready for a new entry
+  ['f-client','f-account','f-email','f-phone','f-project','f-purpose','f-wbs','f-handler',
+   'f-date','f-time','f-status','f-carrier','f-tracking','f-cartons','f-pallets','f-weight',
+   'f-address','f-contents','f-instructions','f-labor','f-billable','f-billing-status']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  photos = [];
+  renderPhotoPreviews();
+  updateSubmitButtonLabel();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateSubmitButtonLabel() {
+  const btn = document.getElementById('submit-btn');
+  if (!btn) return;
+  btn.textContent = editingItemId ? 'Update PO #' + editingItemId : 'Create & Notify';
+}
+
+// Populate every form field from a Monday item's column_values.
+// Also sets direction toggle and records which photo slots are already used.
+function populateFormFromItem(item) {
+  const cols = item.column_values || [];
+  const get = id => {
+    const c = cols.find(x => x.id === id);
+    return (c && c.text) ? c.text : '';
+  };
+  const getDate = id => {
+    // Monday date columns return value JSON like {"date":"YYYY-MM-DD"}
+    const c = cols.find(x => x.id === id);
+    if (!c || !c.value) return '';
+    try { const p = JSON.parse(c.value); return p.date || ''; } catch(e){ return c.text || ''; }
+  };
+  const getLink = id => {
+    const c = cols.find(x => x.id === id);
+    if (!c || !c.value) return '';
+    try { const p = JSON.parse(c.value); return p.url || ''; } catch(e){ return ''; }
+  };
+
+  // Direction toggle — flip UI if item is outbound
+  const dir = (get(COLS.direction) || '').toLowerCase();
+  setDirection(dir === 'outbound' ? 'outbound' : 'inbound');
+
+  // Client & job info
+  document.getElementById('f-client').value   = get(COLS.clientName);
+  document.getElementById('f-account').value  = get(COLS.account);
+  document.getElementById('f-email').value    = get(COLS.clientEmail);
+  document.getElementById('f-phone').value    = get(COLS.clientPhone);
+  document.getElementById('f-project').value  = get(COLS.eventProject);
+  const purposeVal = get(COLS.purpose);
+  const purposeSel = document.getElementById('f-purpose');
+  if (purposeSel && purposeVal) {
+    // Match option text case-insensitively
+    for (const opt of purposeSel.options) {
+      if (opt.value && opt.value.toLowerCase() === purposeVal.toLowerCase()) { purposeSel.value = opt.value; break; }
+    }
+  }
+  document.getElementById('f-wbs').value      = get(COLS.invoiceCode);
+  // Handler was originally written into clientNotes prefixed "Handled by: ..."; extract it
+  const notes = get(COLS.clientNotes);
+  const handlerMatch = notes.match(/Handled by:\s*(.+?)(\n|$)/);
+  document.getElementById('f-handler').value  = handlerMatch ? handlerMatch[1].trim() : '';
+
+  // Dates / tracking
+  document.getElementById('f-date').value     = getDate(COLS.deliveryDate);
+  document.getElementById('f-carrier').value  = get(COLS.carrier);
+  document.getElementById('f-tracking').value = get(COLS.tracking);
+
+  // Status — match by label text
+  const statusVal = get(COLS.shippingStatus);
+  const statusSel = document.getElementById('f-status');
+  if (statusSel && statusVal) {
+    for (const opt of statusSel.options) {
+      if (opt.value && opt.value.toLowerCase() === statusVal.toLowerCase()) { statusSel.value = opt.value; break; }
+    }
+  }
+
+  // Numbers
+  document.getElementById('f-cartons').value  = get(COLS.cartons);
+  document.getElementById('f-pallets').value  = get(COLS.pallets);
+  document.getElementById('f-weight').value   = get(COLS.weight);
+  document.getElementById('f-labor').value    = get(COLS.laborHours);
+  document.getElementById('f-billable').value = get(COLS.billable);
+
+  // Text / long text
+  document.getElementById('f-address').value      = get(COLS.address);
+  document.getElementById('f-contents').value     = get(COLS.contents);
+  document.getElementById('f-instructions').value = get(COLS.instructions);
+
+  // Billing status
+  const billVal = get(COLS.billingStatus);
+  const billSel = document.getElementById('f-billing-status');
+  if (billSel && billVal) {
+    for (const opt of billSel.options) {
+      if (opt.value && opt.value.toLowerCase() === billVal.toLowerCase()) { billSel.value = opt.value; break; }
+    }
+  }
+
+  // Track existing photo slots so new uploads can be appended, not overwritten
+  existingPhotoSlots.slot1Used = !!getLink(COLS.photo1);
+  existingPhotoSlots.slot2Used = !!getLink(COLS.photo2);
+
+  // Clear any queued new uploads
+  photos = [];
+  renderPhotoPreviews();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  MONDAY.COM — UPDATE existing item (edit mode)
+// ══════════════════════════════════════════════════════════════
+async function updateMondayItem(itemId, formData) {
+  const colVals = {};
+  colVals[COLS.clientName]    = formData.client;
+  colVals[COLS.account]       = formData.account;
+  colVals[COLS.clientEmail]   = { email: formData.email, text: formData.email };
+  colVals[COLS.clientPhone]   = formData.phone ? { phone: formData.phone, countryShortName: 'US' } : null;
+  colVals[COLS.eventProject]  = formData.project || '';
+  if (formData.purpose)       colVals[COLS.purpose]        = { label: formData.purpose };
+  colVals[COLS.invoiceCode]   = formData.wbs || '';
+  // Preserve existing clientNotes beyond "Handled by:"; just update the handler line
+  if (formData.handler)       colVals[COLS.clientNotes]    = `Handled by: ${formData.handler}`;
+  colVals[COLS.shippingStatus]= { label: formData.status };
+  colVals[COLS.direction]     = { label: formData.direction === 'inbound' ? 'Inbound' : 'Outbound' };
+  colVals[COLS.carrier]       = formData.carrier || '';
+  colVals[COLS.tracking]      = formData.tracking || '';
+  if (formData.date)          colVals[COLS.deliveryDate]   = { date: formData.date };
+  colVals[COLS.address]       = formData.address || '';
+  colVals[COLS.contents]      = formData.contents || '';
+  colVals[COLS.instructions]  = formData.instructions || '';
+  if (formData.cartons)       colVals[COLS.cartons]        = +formData.cartons;
+  if (formData.pallets)       colVals[COLS.pallets]        = +formData.pallets;
+  if (formData.weight)        colVals[COLS.weight]         = +formData.weight;
+  if (formData.labor)         colVals[COLS.laborHours]     = +formData.labor;
+  if (formData.billable)      colVals[COLS.billable]       = +formData.billable;
+  colVals[COLS.billingStatus] = { label: formData.billingStatus };
+
+  const mutation = `
+    mutation {
+      change_multiple_column_values (
+        board_id: ${CONFIG.BOARD_ID},
+        item_id: ${itemId},
+        column_values: ${JSON.stringify(JSON.stringify(colVals))}
+      ) { id }
+    }`;
+
+  const res = await fetch(CONFIG.MONDAY_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json', 'Authorization': CONFIG.MONDAY_API_TOKEN, 'API-Version':'2023-04' },
+    body: JSON.stringify({ query: mutation })
+  });
+  const data = await res.json();
+  if (data.errors) throw new Error(data.errors[0].message);
+
+  // Audit update on the item
+  try {
+    const ts = new Date().toISOString().slice(0,16).replace('T',' ');
+    const noteBody = `✏️ Edited via Warehouse I/O form at ${ts} UTC by ${formData.handler || 'warehouse'}.`;
+    const noteMut = `mutation { create_update(item_id:${itemId}, body:${JSON.stringify(noteBody)}) { id } }`;
+    await fetch(CONFIG.MONDAY_API_URL, {
+      method:'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization': CONFIG.MONDAY_API_TOKEN, 'API-Version':'2023-04' },
+      body: JSON.stringify({ query: noteMut })
+    });
+  } catch (e) { /* non-fatal */ }
+
+  return itemId;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  WRITE NEW PHOTO URLS (edit mode — append into empty slots only)
+// ══════════════════════════════════════════════════════════════
+async function appendPhotoUrlsToMonday(itemId, photoUrls) {
+  if (!photoUrls.length) return { applied: 0, skipped: 0 };
+  // Figure out which of the 2 slots are empty
+  const emptySlots = [];
+  if (!existingPhotoSlots.slot1Used) emptySlots.push(COLS.photo1);
+  if (!existingPhotoSlots.slot2Used) emptySlots.push(COLS.photo2);
+
+  const applied = Math.min(photoUrls.length, emptySlots.length);
+  const skipped = photoUrls.length - applied;
+  if (applied === 0) return { applied: 0, skipped };
+
+  const colVals = {};
+  for (let i = 0; i < applied; i++) {
+    colVals[emptySlots[i]] = { url: photoUrls[i], text: 'Photo (edit upload)' };
+  }
+  const mutation = `
+    mutation {
+      change_multiple_column_values (
+        board_id: ${CONFIG.BOARD_ID},
+        item_id: ${itemId},
+        column_values: ${JSON.stringify(JSON.stringify(colVals))}
+      ) { id }
+    }`;
+  await fetch(CONFIG.MONDAY_API_URL, {
+    method:'POST',
+    headers: { 'Content-Type':'application/json', 'Authorization': CONFIG.MONDAY_API_TOKEN, 'API-Version':'2023-04' },
+    body: JSON.stringify({ query: mutation })
+  });
+
+  // Track that we've now used these slots (in case user saves twice in same session)
+  if (!existingPhotoSlots.slot1Used && emptySlots.includes(COLS.photo1)) existingPhotoSlots.slot1Used = true;
+  if (!existingPhotoSlots.slot2Used && emptySlots.includes(COLS.photo2)) existingPhotoSlots.slot2Used = true;
+
+  return { applied, skipped };
+}
+
 
 // ══════════════════════════════════════════════════════════════
 //  DIRECTION TOGGLE
@@ -679,197 +1314,30 @@ async function writePhotoUrlsToMonday(itemId, photoUrls) {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  EMAIL FUNCTIONS
+//  SEND I/O NOTICE EMAIL (via DCConfirm Netlify function)
 // ══════════════════════════════════════════════════════════════
-
-// ══════════════════════════════════════════════════════════════
-//  EMAIL BUILDER — matches DC/POD brand template
-// ══════════════════════════════════════════════════════════════
-function buildEmailHtml(d) {
-  var isInbound  = d.direction === 'inbound';
-  var bannerText = isInbound ? 'Inbound Receipt' : 'Outbound Dispatch';
-  var headline   = isInbound ? 'Your shipment has been received.' : 'Your shipment has been dispatched.';
-  var dateLabel  = isInbound ? 'Date Received' : 'Ship Date';
-  var addrLabel  = isInbound ? 'Origin Address' : 'Ship-To Address';
-  var LOGO = 'https://res.cloudinary.com/dxkpbjicu/image/upload/v1774556178/HANDS_Logo_BlackBG_HiRes_qtkac8.png';
-  function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
-  var row  = function(lbl,val) { return val ? '<tr><td style="padding:11px 18px;font-size:12px;color:#888;border-bottom:1px solid #e0e0e0;width:38%;text-transform:uppercase;letter-spacing:0.5px;">'+lbl+'</td><td style="padding:11px 18px;font-size:13px;color:#0a0a0a;border-bottom:1px solid #e0e0e0;">'+esc(val)+'</td></tr>' : ''; };
-  var rowL = function(lbl,val) { return val ? '<tr><td style="padding:11px 18px;font-size:12px;color:#888;width:38%;text-transform:uppercase;letter-spacing:0.5px;">'+lbl+'</td><td style="padding:11px 18px;font-size:13px;color:#0a0a0a;">'+esc(val)+'</td></tr>' : ''; };
-  var photos = [d.photoUrl1, d.photoUrl2].filter(Boolean);
-  var photoSection = photos.length ? '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;"><tr><td align="center"><table cellpadding="0" cellspacing="0" border="0"><tr>'+photos.map(function(u,i){return '<td style="padding:0 4px;"><table cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:#a0d6b4;border-radius:8px;"><a href="'+esc(u)+'" target="_blank" style="display:inline-block;padding:14px 28px;font-size:13px;font-weight:700;color:#0a0a0a;text-decoration:none;letter-spacing:1px;text-transform:uppercase;">View Photo '+(i+1)+'</a></td></tr></table></td>';}).join('')+'</tr></table></td></tr></table>' : '';
-  var assignUrl = 'https://assignpurpose.netlify.app/?po=' + (d.itemId || 'PREVIEW');
-  return '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>'+bannerText+'</title></head>'
-    + '<body style="margin:0;padding:0;background-color:#f2f2f2;font-family:\'Helvetica Neue\',Helvetica,Arial,sans-serif;">'
-    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#e0e0e0;padding:32px 0;"><tr><td align="center">'
-    + '<table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">'
-    + '<tr><td style="background-color:#0a0a0a;padding:32px 40px 28px;">'
-    + '<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>'
-    + '<td><img src="'+LOGO+'" alt="HANDS Logistics" width="145" style="display:block;border:0;"></td>'
-    + '<td align="right"><p style="margin:0;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#555;">Brand Activations<br>Concierge Logistics</p></td>'
-    + '</tr></table>'
-    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;"><tr>'
-    + '<td width="68%" height="3" style="background-color:#1a1a1a;font-size:0;line-height:0;">&nbsp;</td>'
-    + '<td width="32%" height="3" style="background-color:#a0d6b4;font-size:0;line-height:0;">&nbsp;</td>'
-    + '</tr></table></td></tr>'
-    + '<tr><td style="background-color:#a0d6b4;padding:14px 40px;"><p style="margin:0;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#0a0a0a;text-align:center;">'+bannerText+'</p></td></tr>'
-    + '<tr><td style="padding:36px 40px 0;">'
-    + '<p style="margin:0 0 8px;font-size:22px;font-weight:800;color:#0a0a0a;letter-spacing:-0.5px;">'+headline+'</p>'
-    + '<p style="margin:0 0 28px;font-size:14px;color:#444;line-height:1.6;">Hi '+esc(d.clientName)+', your '+(isInbound ? 'inbound shipment has been received and logged' : 'outbound shipment has been processed and dispatched')+'. Review the details below and contact us with any questions.</p>'
-    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;border:1px solid #d0d0d0;border-radius:6px;overflow:hidden;">'
-    + '<tr><td colspan="2" style="background-color:#e2e2e2;padding:10px 18px;border-bottom:1px solid #d0d0d0;"><p style="margin:0;font-size:9.5px;font-weight:900;letter-spacing:3px;text-transform:uppercase;color:#a0d6b4;">01 &mdash; Order Information</p></td></tr>'
-    + row('Client',d.clientName)+row('Account / Brand',d.account)+row('PO Number',d.itemId||'PREVIEW')+row('Project / Event',d.eventProject)+rowL('Purpose',d.purpose)
-    + '</table>'
-    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;border:1px solid #d0d0d0;border-radius:6px;overflow:hidden;">'
-    + '<tr><td colspan="2" style="background-color:#e2e2e2;padding:10px 18px;border-bottom:1px solid #d0d0d0;"><p style="margin:0;font-size:9.5px;font-weight:900;letter-spacing:3px;text-transform:uppercase;color:#a0d6b4;">02 &mdash; Shipment Details</p></td></tr>'
-    + row(dateLabel,d.deliveryDate)+row('Carrier',d.carrier)+row('Tracking #',d.trackingNumber)+row(addrLabel,d.address)+row('Cartons',d.cartonCount)+row('Pallets',d.palletCount)+row('Weight (lbs)',d.weight)+rowL('Contents',d.contentsDescription)
-    + '</table>'
-    + (d.specialInstructions ? '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;border:1px solid #d0d0d0;border-radius:6px;overflow:hidden;"><tr><td style="background-color:#e2e2e2;padding:10px 18px;border-bottom:1px solid #d0d0d0;"><p style="margin:0;font-size:9.5px;font-weight:900;letter-spacing:3px;text-transform:uppercase;color:#a0d6b4;">03 &mdash; Special Instructions</p></td></tr><tr><td style="padding:16px 18px;"><p style="margin:0;font-size:13px;color:#0a0a0a;line-height:1.9;white-space:pre-line;">'+esc(d.specialInstructions)+'</p></td></tr></table>' : '')
-    + photoSection
-    + '</td></tr>'
-    + '<tr><td style="padding:24px 40px;text-align:center;">'
-    + '<table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr><td style="background-color:#a0d6b4;border-radius:8px;">'
-    + '<a href="'+assignUrl+'" target="_blank" style="display:inline-block;padding:14px 32px;font-size:13px;font-weight:700;color:#0a0a0a;text-decoration:none;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;">Assign Purpose &rarr;</a>'
-    + '</td></tr></table>'
-    + '<p style="margin:8px 0 0;font-size:11px;color:#888;">Let us know how you\'d like these materials used.</p>'
-    + '</td></tr>'
-    + '<tr><td style="background-color:#e8e8e8;padding:20px 40px;border-top:1px solid #d5d5d5;">'
-    + '<p style="margin:0;font-size:12px;color:#888;line-height:1.7;text-align:center;">Questions? Contact <a href="mailto:concierge@handslogistics.com" style="color:#a0d6b4;text-decoration:none;">concierge@handslogistics.com</a> &mdash; please report any discrepancies within 48 hours.</p>'
-    + '</td></tr>'
-    + '<tr><td style="padding:0;font-size:0;line-height:0;">'
-    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr>'
-    + '<td width="68%" height="3" style="background-color:#1a1a1a;font-size:0;line-height:0;">&nbsp;</td>'
-    + '<td width="32%" height="3" style="background-color:#a0d6b4;font-size:0;line-height:0;">&nbsp;</td>'
-    + '</tr></table>'
-    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td style="background-color:#0a0a0a;">'
-    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:rgba(5,5,5,0.90);"><tr><td style="padding:32px 40px 36px;">'
-    + '<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>'
-    + '<td width="38%" style="vertical-align:top;padding-right:32px;border-right:1px solid rgba(255,255,255,0.12);">'
-    + '<p style="margin:0 0 6px;font-family:Georgia,serif;font-size:20px;color:#fff;line-height:1.2;">Concierge Desk</p>'
-    + '<p style="margin:0 0 20px;font-size:9px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:#a0d6b4;">HANDS Logistics</p>'
-    + '<table cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:#a0d6b4;border-radius:6px;">'
-    + '<a href="https://scheduleadelivery.netlify.app/" target="_blank" style="display:inline-block;padding:13px 20px;font-size:11px;font-weight:700;color:#0a0a0a;text-decoration:none;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;">Book Another Delivery</a>'
-    + '</td></tr></table></td>'
-    + '<td width="62%" style="vertical-align:top;padding-left:32px;">'
-    + '<p style="margin:0 0 18px;font-family:Georgia,serif;font-size:13px;font-style:italic;color:rgba(255,255,255,0.85);padding-bottom:18px;border-bottom:1px solid rgba(255,255,255,0.12);">Your logistics are in better HANDS.</p>'
-    + '<table width="100%" cellpadding="0" cellspacing="0" border="0">'
-    + '<tr><td width="22" style="padding-bottom:12px;"><span style="color:#a0d6b4;">&#9993;</span></td><td style="padding-bottom:12px;"><a href="mailto:concierge@handslogistics.com" style="font-size:12px;color:#fff;text-decoration:none;">concierge@handslogistics.com</a></td></tr>'
-    + '<tr><td width="22" style="padding-bottom:12px;"><span style="color:#a0d6b4;">&#9832;</span></td><td style="padding-bottom:12px;"><a href="https://www.handslogistics.com" style="font-size:12px;color:#fff;text-decoration:none;">www.handslogistics.com</a></td></tr>'
-    + '<tr><td width="22"><span style="color:#a0d6b4;">&#9679;</span></td><td><span style="font-size:11px;color:rgba(255,255,255,0.75);line-height:1.5;">8540 Dean Martin Drive<br>Suite 160, Las Vegas, NV 89139</span></td></tr>'
-    + '</table></td></tr></table>'
-    + '<p style="margin:20px 0 0;font-size:8px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.35);">Brand Activations &nbsp;&middot;&nbsp; Events &nbsp;&middot;&nbsp; Concierge Logistics</p>'
-    + '</td></tr></table></td></tr></table></td></tr>'
-    + '</table></td></tr></table></body></html>';
-}
-
-// ══════════════════════════════════════════════════════════════
-//  EMAIL PREVIEW — opens branded email in new tab
-// ══════════════════════════════════════════════════════════════
-function previewEmail() {
-  var d = {
-    direction: direction, itemId: 'PREVIEW',
-    clientName: v('f-client') || '—', account: v('f-account') || '—',
-    clientEmail: v('f-email') || '—', eventProject: v('f-project'),
-    purpose: v('f-purpose'), carrier: v('f-carrier'),
-    trackingNumber: v('f-tracking'), deliveryDate: v('f-date'),
-    address: v('f-address'), cartonCount: v('f-cartons'),
-    palletCount: v('f-pallets'), weight: v('f-weight'),
-    contentsDescription: v('f-contents'), specialInstructions: v('f-instructions'),
-    receivedShippedBy: v('f-handler'), invoiceCode: v('f-wbs'),
-    billingStatus: v('f-billing-status'),
-    photoUrl1: (photos[0] && photos[0].cloudinaryUrl) || (photos[0] && photos[0].preview) || '',
-    photoUrl2: (photos[1] && photos[1].cloudinaryUrl) || (photos[1] && photos[1].preview) || '',
-  };
-  var win = window.open('', '_blank');
-  win.document.write(buildEmailHtml(d));
-  win.document.close();
-}
-
-// ══════════════════════════════════════════════════════════════
-//  PRINT BOL
-// ══════════════════════════════════════════════════════════════
-function printBOL() {
-  var isInbound = direction === 'inbound';
-  var win = window.open('', '_blank');
-  win.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>BOL — PO #'+createdItemId+'</title>'
-    +'<style>@media print{.np{display:none}}body{font-family:\'Helvetica Neue\',Helvetica,Arial,sans-serif;padding:32px;color:#111}'
-    +'.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #a0d6b4;padding-bottom:16px;margin-bottom:24px}'
-    +'.badge{background:#a0d6b4;color:#0a0a0a;font-size:11px;font-weight:700;padding:5px 14px;border-radius:20px;letter-spacing:1px;text-transform:uppercase}'
-    +'.po{background:#f5f5f5;padding:12px 16px;border-radius:6px;margin-bottom:24px}'
-    +'table.f{width:100%;border-collapse:collapse;border:1px solid #d0d0d0;border-radius:6px;margin-bottom:20px}'
-    +'table.f td{padding:10px 18px;font-size:13px;border-bottom:1px solid #e0e0e0}'
-    +'table.f td:first-child{color:#888;width:38%;font-size:12px;text-transform:uppercase;letter-spacing:0.5px}'
-    +'.sh{background:#e2e2e2;padding:10px 18px;font-size:9.5px;font-weight:900;letter-spacing:3px;text-transform:uppercase;color:#a0d6b4}'
-    +'.sigs{display:flex;gap:32px;margin-top:40px}.sig{flex:1;border-top:1px solid #ccc;padding-top:8px;font-size:11px;color:#888}'
-    +'.foot{margin-top:32px;font-size:10px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:12px}'
-    +'button{background:#a0d6b4;color:#0a0a0a;border:none;padding:10px 24px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:20px}'
-    +'</style></head><body>'
-    +'<div class="np"><button onclick="window.print()">Print / Save PDF</button></div>'
-    +'<div class="hdr"><div>'
-    +'<div style="font-size:11px;color:#888;letter-spacing:2px;text-transform:uppercase;">HANDS Logistics</div>'
-    +'<div style="font-size:22px;font-weight:800;color:#0a0a0a;margin-top:4px;">'+(isInbound?'INBOUND RECEIPT':'OUTBOUND DISPATCH')+'</div>'
-    +'</div><div class="badge">'+(isInbound?'INBOUND':'OUTBOUND')+'</div></div>'
-    +'<div class="po"><div style="font-size:11px;color:#888;">Purchase Order #</div>'
-    +'<div style="font-size:20px;font-weight:700;color:#a0d6b4;margin-top:4px;letter-spacing:1px;">'+createdItemId+'</div></div>'
-    +'<table class="f"><tr><td colspan="2" class="sh">01 — Order Information</td></tr>'
-    +'<tr><td>Client</td><td>'+v('f-client')+'</td></tr>'
-    +'<tr><td>Account / Brand</td><td>'+v('f-account')+'</td></tr>'
-    +'<tr><td>Project / Event</td><td>'+v('f-project')+'</td></tr>'
-    +'<tr><td>Purpose</td><td>'+v('f-purpose')+'</td></tr>'
-    +'</table>'
-    +'<table class="f"><tr><td colspan="2" class="sh">02 — Shipment Details</td></tr>'
-    +'<tr><td>'+(isInbound?'Date Received':'Ship Date')+'</td><td>'+v('f-date')+'</td></tr>'
-    +'<tr><td>Carrier</td><td>'+v('f-carrier')+'</td></tr>'
-    +'<tr><td>Tracking #</td><td>'+v('f-tracking')+'</td></tr>'
-    +'<tr><td>'+(isInbound?'Origin Address':'Ship-To Address')+'</td><td>'+v('f-address')+'</td></tr>'
-    +'<tr><td>Cartons</td><td>'+v('f-cartons')+'</td></tr>'
-    +'<tr><td>Pallets</td><td>'+v('f-pallets')+'</td></tr>'
-    +'<tr><td>Weight (lbs)</td><td>'+v('f-weight')+'</td></tr>'
-    +'<tr><td>Contents</td><td>'+v('f-contents')+'</td></tr>'
-    +'<tr><td>Handler</td><td>'+v('f-handler')+'</td></tr>'
-    +'</table>'
-    +'<div class="sigs"><div class="sig">Received / Shipped By</div><div class="sig">Signature</div><div class="sig">Date</div></div>'
-    +'<div class="foot">HANDS Logistics · 8540 Dean Martin Dr, Suite 160, Las Vegas, NV 89139 · concierge@handslogistics.com</div>'
-    +'</body></html>');
-  win.document.close();
-}
-
-// ══════════════════════════════════════════════════════════════
-//  SEND EMAIL — server-side via Netlify function
-// ══════════════════════════════════════════════════════════════
-async function sendEmail(itemId, formData, photoUrls) {
-  var res = await fetch(CONFIG.EMAIL_FUNCTION, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      itemId:              itemId,
-      direction:           formData.direction,
-      clientName:          formData.client,
-      clientEmail:         formData.email,
-      account:             formData.account,
-      eventProject:        formData.project,
-      purpose:             formData.purpose,
-      carrier:             formData.carrier,
-      trackingNumber:      formData.tracking,
-      deliveryDate:        formData.date,
-      address:             formData.address,
-      cartonCount:         formData.cartons,
-      palletCount:         formData.pallets,
-      weight:              formData.weight,
-      contentsDescription: formData.contents,
-      specialInstructions: formData.instructions,
-      receivedShippedBy:   formData.handler,
-      invoiceCode:         formData.wbs,
-      billingStatus:       formData.billingStatus,
-      photoUrl1:           photoUrls[0] || '',
-      photoUrl2:           photoUrls[1] || '',
-    }),
-  });
-  if (!res.ok) {
-    var err = await res.json().catch(function() { return {}; });
-    throw new Error('Email failed: ' + (err.error || res.status));
+//  Replaces the old Zapier hooks (which were pointing at placeholder URLs
+//  and silently failing). The new function reads directly from Monday
+//  so we only need to pass the itemId — the rest is looked up server-side.
+async function triggerIoNoticeEmail(itemId) {
+  try {
+    const res = await fetch(CONFIG.IO_NOTICE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemId: String(itemId) }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.success) {
+      console.warn('I/O notice email failed:', res.status, data);
+      return { ok: false, error: data && data.error ? data.error : 'HTTP ' + res.status };
+    }
+    console.log('I/O notice sent:', data.direction, '→', (data.sentTo || []).join(', '));
+    return { ok: true, ...data };
+  } catch (err) {
+    console.warn('I/O notice email network error:', err);
+    return { ok: false, error: err.message };
   }
 }
-
 
 // ══════════════════════════════════════════════════════════════
 //  BUILD BILLING URL
@@ -968,42 +1436,80 @@ async function submitForm() {
   };
 
   try {
-    // Step 1: Create Monday item
-    showMsg(msg, 'info', 'Step 1/4 — Creating Monday.com record…');
-    fill.style.width = '20%';
-    const itemId = await createMondayItem(formData);
-    createdItemId = itemId;
-    fill.style.width = '40%';
+    let itemId;
+    const isEdit = !!editingItemId;
 
-    // Step 2: Upload photos to Cloudinary
-    showMsg(msg, 'info', 'Step 2/4 — Uploading photos to Cloudinary…');
-    const photoUrls = await uploadPhotosToCloudinary(itemId);
-    fill.style.width = '70%';
+    if (isEdit) {
+      // Step 1 (edit): Update the existing item
+      showMsg(msg, 'info', 'Step 1/3 — Updating Monday.com record #' + editingItemId + '…');
+      fill.style.width = '20%';
+      itemId = await updateMondayItem(editingItemId, formData);
+      fill.style.width = '40%';
 
-    // Step 3: Write photo URLs back to Monday
-    if (photoUrls.length) {
-      showMsg(msg, 'info', 'Step 3/4 — Linking photos to record…');
-      await writePhotoUrlsToMonday(itemId, photoUrls);
+      // Step 2: Upload any new photos
+      showMsg(msg, 'info', 'Step 2/3 — Uploading new photos…');
+      const photoUrls = await uploadPhotosToCloudinary(itemId);
+      fill.style.width = '70%';
+
+      // Step 3: Append new photos into empty slots (preserve existing)
+      if (photoUrls.length) {
+        showMsg(msg, 'info', 'Step 3/3 — Linking new photos to record…');
+        const result = await appendPhotoUrlsToMonday(itemId, photoUrls);
+        if (result.skipped > 0) {
+          showMsg(msg, 'info', `${result.applied} photo(s) added. ${result.skipped} skipped — both photo slots on this item are already full.`);
+        }
+      }
+      fill.style.width = '100%';
+    } else {
+      // Step 1: Create Monday item
+      showMsg(msg, 'info', 'Step 1/3 — Creating Monday.com record…');
+      fill.style.width = '20%';
+      itemId = await createMondayItem(formData);
+      createdItemId = itemId;
+      fill.style.width = '40%';
+
+      // Step 2: Upload photos to Cloudinary
+      showMsg(msg, 'info', 'Step 2/3 — Uploading photos to Cloudinary…');
+      const photoUrls = await uploadPhotosToCloudinary(itemId);
+      fill.style.width = '70%';
+
+      // Step 3: Write photo URLs back to Monday
+      if (photoUrls.length) {
+        showMsg(msg, 'info', 'Step 3/3 — Linking photos to record…');
+        await writePhotoUrlsToMonday(itemId, photoUrls);
+      }
+      fill.style.width = '90%';
     }
-    fill.style.width = '90%';
 
-    // Step 4: Send email via Netlify function (Resend)
-    if (sendEmail) {
-      showMsg(msg, 'info', 'Step 4/4 — Sending client notification…');
-      await sendEmail(itemId, formData, photoUrls);
+    // Step 4: Send client notification email via DCConfirm Netlify
+    // (only on create, not on edit — edits are internal corrections and shouldn't re-notify)
+    if (sendEmail && !isEdit) {
+      showMsg(msg, 'info', 'Sending client notification…');
+      const notice = await triggerIoNoticeEmail(itemId);
+      if (!notice.ok) {
+        showMsg(msg, 'error', 'Email failed: ' + (notice.error || 'unknown') + '. Item was still saved to Monday.');
+        // Continue — item is saved, user can manually re-send later
+      } else {
+        showMsg(msg, 'success', 'Email sent to ' + (notice.sentTo || []).join(', '));
+      }
     }
 
     fill.style.width = '100%';
 
+    // Snapshot data for BOL generator
+    lastSubmittedData = formData;
+
     // Show success
-    const billingUrl = buildBillingUrl(itemId, formData, photoUrls);
+    const billingUrl = buildBillingUrl(itemId, formData, []);
     document.getElementById('form-panel').style.display    = 'none';
     document.getElementById('success-screen').style.display = 'block';
     document.getElementById('sc-po-val').textContent      = itemId;
     document.getElementById('sc-client-val').textContent  = formData.client;
     document.getElementById('sc-account-val').textContent = formData.account;
+    // Reflect edit vs create in the success headline if the markup supports it
+    const scHeading = document.querySelector('#success-screen h2, #success-screen .sc-title, #success-screen .ss-title');
+    if (scHeading && isEdit) scHeading.textContent = 'Updated';
     document.getElementById('sc-monday-link').href = `https://handslogistics.monday.com/boards/${CONFIG.BOARD_ID}`;
-    document.getElementById('sc-bol-btn').style.display = 'inline-block';
     if (sendBilling) {
       const bl = document.getElementById('sc-billing-link');
       bl.href = billingUrl;
@@ -1052,8 +1558,63 @@ function newEntry() {
   resetForm();
 }
 
+// ══════════════════════════════════════════════════════════════
+//  BOL GENERATOR  (uses shared bol.js → window.HANDS_BOL)
+// ══════════════════════════════════════════════════════════════
+let lastSubmittedData = null;   // snapshot of last successful submit (for post-submit "Generate BOL")
+
+function collectFormData() {
+  // Read whatever's currently typed into the form — used by Preview buttons before submit
+  return {
+    direction:    direction,
+    client:       v('f-client'),
+    account:      v('f-account'),
+    email:        v('f-email'),
+    phone:        v('f-phone'),
+    project:      v('f-project'),
+    purpose:      v('f-purpose'),
+    wbs:          v('f-wbs'),
+    handler:      v('f-handler'),
+    date:         v('f-date'),
+    time:         v('f-time'),
+    status:       v('f-status'),
+    carrier:      v('f-carrier'),
+    tracking:     v('f-tracking'),
+    cartons:      v('f-cartons'),
+    pallets:      v('f-pallets'),
+    weight:       v('f-weight'),
+    address:      v('f-address'),
+    contents:     v('f-contents'),
+    instructions: v('f-instructions'),
+  };
+}
+
+// Preview from form (before submit) — no PO yet, shows "DRAFT"
+function previewBolFromForm(type) {
+  if (!window.HANDS_BOL) { alert('BOL module failed to load. Refresh the page and try again.'); return; }
+  const data = collectFormData();
+  if (!data.client && !data.account && !data.contents) {
+    if (!confirm('The form is mostly empty — preview anyway?')) return;
+  }
+  window.HANDS_BOL.openPreview(type, data, 'DRAFT');
+}
+
+// Post-submit BOL picker (from success screen)
+function openBolPicker() {
+  document.getElementById('bol-picker').style.display = 'flex';
+}
+
+function generateBol(type) {
+  document.getElementById('bol-picker').style.display = 'none';
+  if (!window.HANDS_BOL) { alert('BOL module failed to load.'); return; }
+  const d  = lastSubmittedData || {};
+  const po = createdItemId || '—';
+  window.HANDS_BOL.openPreview(type, d, po);
+}
+
 // Set today's date as default
 document.getElementById('f-date').valueAsDate = new Date();
+
 </script>
 </body>
 </html>
